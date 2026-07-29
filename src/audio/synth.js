@@ -1,7 +1,7 @@
 // 合成音乐引擎: 用振荡器/噪声合成鼓、贝斯、旋律
 // 采用 Web Audio "前瞻调度" (A Tale of Two Clocks): 每 25ms 预排未来 150ms 的事件,
 // 所有 osc.start(when) 用 AudioContext 精确时间 => 采样级精准, 与谱面同源 => 卡点 100% 准
-import { getAudio } from "./context.js?v=1785342161";
+import { getAudio } from "./context.js?v=1785342673";
 
 const LOOKAHEAD = 0.15;   // 预排窗口(秒)
 const TICK = 25;          // 调度器轮询(ms)

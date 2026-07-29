@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785342161";
-import { hexA } from "../stage.js?v=1785342161";
-import { clamp, lerp } from "./base.js?v=1785342161";
+import { COLORS } from "../config.js?v=1785342673";
+import { hexA } from "../stage.js?v=1785342673";
+import { clamp, lerp } from "./base.js?v=1785342673";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -393,7 +393,6 @@ export function createCut(stage, game) {
     const fv = feverOn();
 
     drawBackground(c, t, bands, fv);
-    drawPenguin(c, t, bands, fv);
     if (!flower && !sunset) drawSwirl(c, t, fv);      // 花海/日落不要中央螺旋光晕(还原干净底图)
     if (!flower && !sunset) drawBadges(c, t, fv);
     drawDecor(c, t);
@@ -406,6 +405,9 @@ export function createCut(stage, game) {
       if (p.el < 0 || p.el > 2 * RISE || p.y > geom.H * 1.1) continue;
       drawNote(c, p.x, p.y, n, t);
     }
+
+    // 企鹅(骑行/跳舞视频)画在音符之上 => 位于最上层, 不被音符遮挡
+    drawPenguin(c, t, bands, fv);
 
     drawBlade(c, t, fv);
     drawWeapon(c, t, fv);
