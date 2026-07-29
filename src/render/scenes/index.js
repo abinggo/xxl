@@ -1,7 +1,7 @@
 // 场景注册表: key -> 工厂(接收 stage, game 上下文)
-import { createJump } from "./jump.js?v=1785339250";
-import { createWhackShop } from "./workshop.js?v=1785339250";
-import { createCut } from "./cut.js?v=1785339250";
+import { createJump } from "./jump.js?v=1785339764";
+import { createWhackShop } from "./workshop.js?v=1785339764";
+import { createCut } from "./cut.js?v=1785339764";
 
 const REGISTRY = { jump: createJump, workshop: createWhackShop, cut: createCut };
 
