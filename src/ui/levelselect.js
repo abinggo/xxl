@@ -1,21 +1,15 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785336542";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785336948";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
 // 星光闪烁、音符上浮、标题流光 + 海报整体轻微呼吸缩放, 让静图"活"起来。
 // 每首歌自带一个小图标, 让选曲一眼能分清(霓虹/花海)
 const SONG_ICON = { neon: "💎", flower: "🌸" };
-// 视觉主题皮肤(和歌曲解绑): 右上角单独切, 只换配色/背景/切割物, 不动歌与谱面
-const THEME_ORDER = ["neon", "flower"];
-const THEME_LABEL = { neon: "💎 霓虹皮", flower: "🌸 花海皮" };
-// 首页海报皮肤: 右上角切皮肤时, 直接换整张封面底图(霓虹海报 <-> 花海海报)
-const THEME_COVER = { neon: "./assets/bg/cover.png", flower: "./assets/bg/huahai_cover.png" };
 
 export function renderHome(root, { songs, onStart, onCustom }) {
   const list = songs && songs.length ? songs : [{ id: "neon", name: "霓虹夜航", genre: "City Pop", theme: "neon" }];
-  let sel = 0;                                   // 选中的歌(只决定音乐+谱面)
-  let theme = list[sel].theme || "neon";         // 选中的皮肤(独立于歌, 右上角切)
+  let sel = 0;                                   // 选中的歌(决定音乐 + 谱面 + 进场主题)
 
   const el = document.createElement("div");
   el.className = "screen home home--cover";
@@ -23,7 +17,6 @@ export function renderHome(root, { songs, onStart, onCustom }) {
     <div class="cover">
       <img class="cover__img" id="coverImg" src="./assets/bg/cover.png" alt="一拍即合 · 节拍切击" draggable="false" />
       <canvas class="cover__fx" id="coverFx"></canvas>
-      <button class="cover__themebtn" id="themeBtn"></button>
       <button class="cover__pickbtn" id="songBtn"></button>
       <button class="hot hot--play" id="startBtn" aria-label="开始"></button>
     </div>
@@ -40,17 +33,10 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   `;
 
   const songBtn = el.querySelector("#songBtn");
-  const themeBtn = el.querySelector("#themeBtn");
-  const coverImg = el.querySelector("#coverImg");
   const sheet = el.querySelector("#songSheet");
   const listEl = el.querySelector("#songList");
 
   function iconOf(s) { return SONG_ICON[s.theme] || "🎵"; }
-  // 应用皮肤: 换按钮文案 + 直接把整张首页海报换成对应主题(霓虹/花海)
-  function applyThemeSkin() {
-    themeBtn.textContent = THEME_LABEL[theme] || THEME_LABEL.neon;
-    coverImg.src = THEME_COVER[theme] || THEME_COVER.neon;
-  }
   function paintSongBtn() { songBtn.innerHTML = `${iconOf(list[sel])} <b>${list[sel].name}</b> ▾`; }
   function paintList() {
     listEl.innerHTML = list.map((s, i) => `
@@ -71,21 +57,14 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   el.querySelector("#sheetClose").addEventListener("click", closeSheet);
   sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
 
-  // 右上角: 在皮肤间循环切换(只换视觉, 不动歌与谱面)
-  themeBtn.addEventListener("click", () => {
-    theme = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
-    applyThemeSkin();
-  });
-
-  // 开始开拍 => 用【选中的歌】+【选中的皮肤】进场(两者解绑)
-  el.querySelector("#startBtn").addEventListener("click", () => onStart(list[sel], theme));
+  // 开始开拍 => 用【选中的歌】进场(主题跟随该歌自带)
+  el.querySelector("#startBtn").addEventListener("click", () => onStart(list[sel], list[sel].theme));
 
   const fi = el.querySelector("#fileInput");
   el.querySelector("#customBtn").addEventListener("click", () => fi.click());
-  fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f, theme); } });
+  fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f, list[sel].theme); } });
 
   paintSongBtn();
-  applyThemeSkin();               // 初始按当前皮肤渲染按钮 + 首页海报
   paintList();                    // 预填充列表, 弹层任何时候显示都不会是空的
   root.appendChild(el);
   startCoverAnim(el.querySelector("#coverFx"));
