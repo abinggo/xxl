@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785336948";
-import { hexA } from "../stage.js?v=1785336948";
-import { clamp, lerp } from "./base.js?v=1785336948";
+import { COLORS } from "../config.js?v=1785337429";
+import { hexA } from "../stage.js?v=1785337429";
+import { clamp, lerp } from "./base.js?v=1785337429";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -150,13 +150,20 @@ export function createCut(stage, game) {
   function laneTap() { sliceNearest(); }
   function tap() { sliceNearest(); }
 
+  let bladeAcc = 0;                                  // 掉屑节流: 累积挥动距离
   function pointer(type, x, y) {
     const t = game.t;
-    if (type === "down") { trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; sliceSeg(x - 1, y, x + 1, y); return; }
+    if (type === "down") { trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; bladeAcc = 0; sliceSeg(x - 1, y, x + 1, y); return; }
     if (type === "move") {
       const p = prevPt || { x, y };
       sliceSeg(p.x, p.y, x, y);
-      trail.push({ x, y, t }); if (trail.length > 32) trail.shift();
+      // 沿刀锋掉落细碎屑: 每挥过一小段距离掉 1 粒(节流, 不刷爆粒子池)
+      bladeAcc += Math.hypot(x - p.x, y - p.y);
+      if (bladeAcc >= 20) {
+        bladeAcc = 0;
+        stage.fx.spawnEmber(x, y, feverOn() ? GOLD : (flower ? F_PINK : COOL));
+      }
+      trail.push({ x, y, t }); if (trail.length > 22) trail.shift();
       prevPt = { x, y };
       return;
     }
@@ -166,7 +173,7 @@ export function createCut(stage, game) {
   function synthBlade(x, y, ang) {
     const t = game.t, L = 88;
     for (let k = -1; k <= 1; k++) trail.push({ x: x + Math.cos(ang) * L * k, y: y + Math.sin(ang) * L * k, t });
-    if (trail.length > 32) trail.splice(0, trail.length - 32);
+    if (trail.length > 22) trail.splice(0, trail.length - 22);
   }
 
   function resolveHit(n, j, ang) {
@@ -262,7 +269,7 @@ export function createCut(stage, game) {
         const p = notePos(n, t);
         if (autoPt) { for (let k = 1; k <= 3; k++) trail.push({ x: lerp(autoPt.x, p.x, k / 3), y: lerp(autoPt.y, p.y, k / 3), t }); }
         else trail.push({ x: p.x, y: p.y, t });
-        if (trail.length > 32) trail.splice(0, trail.length - 32);
+        if (trail.length > 22) trail.splice(0, trail.length - 22);
         const ang = autoPt ? Math.atan2(p.y - autoPt.y, p.x - autoPt.x) : -0.6;
         autoPt = { x: p.x, y: p.y };
         resolveHit(n, Math.abs(t - n.time) <= CUT.perfect ? "perfect" : "good", ang);
@@ -416,9 +423,9 @@ export function createCut(stage, game) {
 
     // 星尘
     c.save(); c.globalCompositeOperation = "lighter";
-    for (const s of stars) {
+    for (const s of stars) {                          // 80 颗星每帧, 去掉 shadowBlur(lighter 自带辉光)
       const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.6 + s.ph));
-      c.fillStyle = hexA(s.col, 0.45 * tw); c.shadowColor = s.col; c.shadowBlur = 6;
+      c.fillStyle = hexA(s.col, 0.5 * tw);
       c.beginPath(); c.arc(s.xf * geom.W, s.yf * geom.H, s.r * tw, 0, Math.PI * 2); c.fill();
     }
     c.restore();
@@ -527,10 +534,9 @@ export function createCut(stage, game) {
       const x = d.xf * geom.W + Math.sin(t * 0.3 + d.ph) * 14;
       const y = ((d.yf - t * 0.015 * d.sp) % 1 + 1) % 1 * geom.H;
       const tw = 0.35 + 0.5 * Math.abs(Math.sin(t * 2 + d.ph));
-      const col = fv ? GOLD : d.col, s = d.r * (0.7 + tw * 0.5);
+      const col = fv ? GOLD : d.col, s = d.r * (0.7 + tw * 0.5);   // 54 片碎屑每帧, 去 shadowBlur
       c.save(); c.translate(x, y); c.rotate(d.rot + t * 0.3);
-      c.strokeStyle = hexA(col, 0.5 * tw + 0.15); c.lineWidth = 1.4;
-      c.shadowColor = col; c.shadowBlur = 8;
+      c.strokeStyle = hexA(col, 0.55 * tw + 0.18); c.lineWidth = 1.4;
       c.beginPath(); c.moveTo(0, -s); c.lineTo(s * 0.62, 0); c.lineTo(0, s); c.lineTo(-s * 0.62, 0); c.closePath();
       c.fillStyle = hexA(col, 0.12 * tw); c.fill(); c.stroke();
       c.beginPath(); c.moveTo(0, -s); c.lineTo(0, s); c.moveTo(-s * 0.62, 0); c.lineTo(s * 0.62, 0); c.stroke();
@@ -547,11 +553,10 @@ export function createCut(stage, game) {
     for (const p of crowd) {
       const x = p.xf * geom.W;
       const h = geom.H * (0.02 + Math.abs(Math.sin(t * 3 + p.ph)) * (0.04 + energy * 0.03));
-      const col = fv ? GOLD : p.col;
-      c.strokeStyle = hexA(col, 0.85); c.lineWidth = 3; c.lineCap = "round";
-      c.shadowColor = col; c.shadowBlur = 10;
+      const col = fv ? GOLD : p.col;                  // 48 根荧光棒每帧, 去 shadowBlur
+      c.strokeStyle = hexA(col, 0.9); c.lineWidth = 3; c.lineCap = "round";
       c.beginPath(); c.moveTo(x, base); c.lineTo(x, base - h); c.stroke();
-      c.fillStyle = hexA(col, 0.6);
+      c.fillStyle = hexA(col, 0.7);
       c.beginPath(); c.arc(x, base - h, 2.6, 0, Math.PI * 2); c.fill();
     }
     c.restore();
@@ -790,7 +795,7 @@ export function createCut(stage, game) {
     poly(c, rf, hexA(col, 0.20), col, 0);
     poly(c, lf, hexA(col, 0.12), col, 0);
     // 外轮廓
-    c.strokeStyle = hexA("#ffffff", 0.92); c.lineWidth = 2.2; c.shadowColor = col; c.shadowBlur = 18;
+    c.strokeStyle = hexA("#ffffff", 0.92); c.lineWidth = 2.2; c.shadowColor = col; c.shadowBlur = 10;
     path(c, [T, R, Br, B, Bl, L], true); c.stroke();
     // 内棱
     c.lineWidth = 1.6; c.strokeStyle = hexA("#ffffff", 0.7);
@@ -807,7 +812,7 @@ export function createCut(stage, game) {
   // 霓虹音符环: ♪ 在发光圆环里
   function noteRing(c, a, col, t, spec) {
     const R = a * 1.05;
-    c.strokeStyle = hexA(col, 0.9); c.lineWidth = 3; c.shadowColor = col; c.shadowBlur = 20;
+    c.strokeStyle = hexA(col, 0.9); c.lineWidth = 3; c.shadowColor = col; c.shadowBlur = 12;
     c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.stroke();
     c.strokeStyle = hexA("#ffffff", 0.55); c.lineWidth = 1.2;
     c.beginPath(); c.arc(0, 0, R * 0.8, 0, Math.PI * 2); c.stroke();
@@ -820,7 +825,7 @@ export function createCut(stage, game) {
   // 水晶宝石: 多面钻石 + ♪
   function gemCrystal(c, a, col, t, spec, note) {
     const W = a, tableY = -a * 0.6, girdleY = -a * 0.18, botY = a * 1.15, tw = W * 0.52, gm = W * 0.34;
-    c.shadowColor = col; c.shadowBlur = 26;
+    c.shadowColor = col; c.shadowBlur = 14;
     c.beginPath();
     c.moveTo(-tw, tableY); c.lineTo(tw, tableY); c.lineTo(W, girdleY); c.lineTo(0, botY); c.lineTo(-W, girdleY); c.closePath();
     const rg = c.createRadialGradient(0, girdleY, 2, 0, girdleY, a * 1.5);
@@ -845,39 +850,38 @@ export function createCut(stage, game) {
     c.restore();
   }
 
-  // ===== 霓虹螺旋刀光 =====
+  // ===== 霓虹螺旋刀光(更细的光刀 + 低开销发光) =====
+  // 关键性能点: canvas 的 shadowBlur 极贵。原来 4 层大模糊 × 每段一次 => 主力掉帧源。
+  // 现在只留 3 层, 且宽发光层不用 shadowBlur(靠 lighter 半透明叠加出光晕), 只有核心细带带一点点辉光。
   function drawBlade(c, t, fv) {
     const pts = [];
     for (const p of trail) { const af = 1 - (t - p.t) / TRAIL_LIFE; if (af > 0) pts.push({ x: p.x, y: p.y, af }); }
     if (pts.length < 2) return;
     c.save(); c.globalCompositeOperation = "lighter"; c.lineCap = "round"; c.lineJoin = "round";
     const passes = [
-      { w: 52, blur: 40, alpha: 0.24, white: false },
-      { w: 28, blur: 30, alpha: 0.5, white: false },
-      { w: 13, blur: 20, alpha: 0.85, white: false },
-      { w: 4.5, blur: 12, alpha: 1.0, white: true },
+      { w: 16, blur: 0, alpha: 0.20, white: false },   // 外发光: 无 shadow, 纯叠加
+      { w: 7,  blur: 0, alpha: 0.5,  white: false },   // 中层刀身
+      { w: 2.6, blur: 6, alpha: 1.0, white: true },    // 白芯: 仅这层带一点辉光
     ];
     for (const pass of passes) {
+      c.shadowBlur = pass.blur;                          // 每层设一次即可
       for (let i = 1; i < pts.length; i++) {
         const frac = i / (pts.length - 1), af = pts[i].af;
         const col = pass.white ? "#ffffff" : (fv ? GOLD : (flower ? fBladeCol(frac) : bladeCol(frac)));
         c.strokeStyle = withA(col, pass.alpha * af);
         c.lineWidth = Math.max(1, pass.w * (0.3 + frac * 0.7) * af);
-        c.shadowColor = pass.white ? (fv ? GOLD : COOL) : col; c.shadowBlur = pass.blur;
+        if (pass.blur) c.shadowColor = pass.white ? (fv ? GOLD : COOL) : col;
         const aP = pts[i - 1], bP = pts[i], mx = (aP.x + bP.x) / 2, my = (aP.y + bP.y) / 2;
         c.beginPath();
         if (i === 1) c.moveTo(aP.x, aP.y); else { const pa = pts[i - 2]; c.moveTo((pa.x + aP.x) / 2, (pa.y + aP.y) / 2); }
         c.quadraticCurveTo(aP.x, aP.y, mx, my); c.stroke();
       }
     }
+    c.shadowBlur = 0;
     const head = pts[pts.length - 1];
-    const hg = c.createRadialGradient(head.x, head.y, 1, head.x, head.y, 24);
+    const hg = c.createRadialGradient(head.x, head.y, 1, head.x, head.y, 14);
     hg.addColorStop(0, "#ffffff"); hg.addColorStop(0.4, withA(fv ? GOLD : COOL, 0.8)); hg.addColorStop(1, "rgba(0,0,0,0)");
-    c.fillStyle = hg; c.beginPath(); c.arc(head.x, head.y, 24, 0, Math.PI * 2); c.fill();
-    for (let i = 1; i < pts.length; i += 2) {
-      c.globalAlpha = pts[i].af; c.fillStyle = "#ffffff"; c.shadowColor = fv ? GOLD : COOL; c.shadowBlur = 12;
-      c.beginPath(); c.arc(pts[i].x, pts[i].y, 1.6 + pts[i].af * 1.8, 0, Math.PI * 2); c.fill();
-    }
+    c.fillStyle = hg; c.beginPath(); c.arc(head.x, head.y, 14, 0, Math.PI * 2); c.fill();
     c.restore();
   }
 
@@ -887,9 +891,9 @@ export function createCut(stage, game) {
     if (t - last.t > 0.10) return;
     const prev = trail[trail.length - 2];
     const ang = Math.atan2(last.y - prev.y, last.x - prev.x);
-    const glow = fv ? GOLD : COOL, hilt = fv ? PINK : (flower ? F_PINK : VIOLET), L = geom.H * 0.15, bw = 10;
+    const glow = fv ? GOLD : COOL, hilt = fv ? PINK : (flower ? F_PINK : VIOLET), L = geom.H * 0.095, bw = 6.5;
     c.save(); c.translate(last.x, last.y); c.rotate(ang); c.globalCompositeOperation = "lighter";
-    c.shadowColor = glow; c.shadowBlur = 28; c.fillStyle = hexA(glow, 0.5);
+    c.shadowColor = glow; c.shadowBlur = 12; c.fillStyle = hexA(glow, 0.5);
     c.beginPath(); c.moveTo(-L * 0.28, 0); c.lineTo(0, -bw); c.lineTo(L, 0); c.lineTo(0, bw); c.closePath(); c.fill();
     c.shadowBlur = 10; c.fillStyle = "#ffffff";
     c.beginPath(); c.moveTo(-L * 0.2, 0); c.lineTo(0, -bw * 0.4); c.lineTo(L * 0.96, 0); c.lineTo(0, bw * 0.4); c.closePath(); c.fill();
@@ -950,9 +954,9 @@ function path(c, pts, close) {
 function seg(c, a, b) { c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
 function mid(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
 function corner(c, p, col) {
-  c.save(); c.globalCompositeOperation = "lighter";
-  c.fillStyle = "#ffffff"; c.shadowColor = col; c.shadowBlur = 10;
-  c.beginPath(); c.arc(p[0], p[1], 2.2, 0, Math.PI * 2); c.fill(); c.restore();
+  c.save(); c.globalCompositeOperation = "lighter";   // 高光点: 去 shadowBlur(每方块 3 个, 累积不划算)
+  c.fillStyle = "#ffffff";
+  c.beginPath(); c.arc(p[0], p[1], 2.4, 0, Math.PI * 2); c.fill(); c.restore();
 }
 
 function bladeCol(f) {

@@ -54,6 +54,18 @@ export function createFx() {
     }
   }
 
+  // 刀锋掉落的细碎屑: 极小、短命、略微向下坠落(挥刀时沿轨迹掉一串火星)
+  function spawnEmber(x, y, color) {
+    const p = alloc(); if (!p) return;
+    const a = Math.random() * Math.PI * 2;
+    const sp = 0.6 + Math.random() * 1.6;
+    p.active = true; p.kind = "dot"; p.x = x; p.y = y;
+    p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp + 0.5;   // 略向下
+    p.life = 1; p.decay = 0.035 + Math.random() * 0.03;
+    p.r = 1.1 + Math.random() * 1.6; p.color = color;
+    p.rot = 0; p.vr = 0; p.grav = 0.16;
+  }
+
   // 冲击波环: 从命中点向外扩散
   function spawnRing(x, y, color, power = 1) {
     rings.push({ x, y, r: 8, vr: 6 + 4 * power, life: 1, decay: 0.045, color, lw: 4 + 3 * power });
@@ -88,37 +100,36 @@ export function createFx() {
   function draw(ctx) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    // 冲击波环
+    // 冲击波环(数量少, 保留一点辉光)
     for (const r of rings) {
       ctx.globalAlpha = Math.max(0, r.life) * 0.85;
       ctx.strokeStyle = r.color; ctx.lineWidth = Math.max(1, r.lw * r.life);
-      ctx.shadowColor = r.color; ctx.shadowBlur = 18;
+      ctx.shadowColor = r.color; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.shadowBlur = 0;
-    // 粒子
+    // 粒子: shadowBlur 极贵且这里数量可达数百 => 命中爆发时正是掉帧点。
+    // 全部改为无 shadow, 用 "lighter" 叠加本身就自带发光观感, 帧率大幅回稳。
     for (let i = 0; i < MAX; i++) {
       const p = pool[i];
       if (!p.active) continue;
       ctx.globalAlpha = Math.max(0, p.life);
       if (p.kind === "half") {
-        // 半块晶体: 沿切线为直边的半多边形, 亮切口 + 外发光
+        // 半块晶体: 沿切线为直边的半多边形 + 亮切口
         ctx.save();
         ctx.translate(p.x, p.y); ctx.rotate(p.cut);
         const s = p.r * (0.65 + p.life * 0.35), dir = p.side;
-        ctx.shadowColor = p.color; ctx.shadowBlur = 16;
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.moveTo(-s, 0); ctx.lineTo(-s * 0.5, dir * s); ctx.lineTo(s * 0.5, dir * s); ctx.lineTo(s, 0);
         ctx.closePath(); ctx.fill();
-        ctx.shadowBlur = 0;                       // 亮切口
         ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.4;
         ctx.beginPath(); ctx.moveTo(-s, 0); ctx.lineTo(s, 0); ctx.stroke();
         ctx.restore();
       } else if (p.kind === "shard") {
         ctx.save();
         ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-        ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 12;
+        ctx.fillStyle = p.color;
         const s = p.r * (0.5 + p.life * 0.5);
         ctx.beginPath();
         ctx.moveTo(0, -s); ctx.lineTo(s * 0.66, 0); ctx.lineTo(0, s); ctx.lineTo(-s * 0.66, 0);
@@ -148,5 +159,5 @@ export function createFx() {
     ctx.restore();
   }
 
-  return { spawnBurst, spawnShards, spawnHalves, spawnRing, spawnPop, update, draw };
+  return { spawnBurst, spawnShards, spawnHalves, spawnEmber, spawnRing, spawnPop, update, draw };
 }
