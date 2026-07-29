@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785339764";
-import { hexA } from "../stage.js?v=1785339764";
-import { clamp, lerp } from "./base.js?v=1785339764";
+import { COLORS } from "../config.js?v=1785342161";
+import { hexA } from "../stage.js?v=1785342161";
+import { clamp, lerp } from "./base.js?v=1785342161";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -33,6 +33,50 @@ let FLORAL = null;
 // 日落大道舞台底图(落日公路), 加载完成前回退为暖色渐变
 let SUNSET = null;
 { const im = new Image(); im.onload = () => { SUNSET = im; }; im.src = "./assets/bg/riluo_stage.png"; }
+
+// 企鹅动态视频精灵: 源视频是纯黑底 CGI, 离屏按亮度抠掉黑底 => 透明。
+// 关键性能点: 抠像只在"视频出新帧"时(约 25~30fps)做一次到 256² 离屏, 游戏主循环(120fps)
+// 只 drawImage 这张已抠好的离屏 => 抠像频率不随渲染帧率翻倍, 不卡。同一时刻只解码正在用的那个视频。
+function makeVideoSprite(src, lo, hi) {
+  const S = 192;                        // 离屏抠像分辨率(越小回读越便宜)
+  const MIN_DT = 45;                    // 抠像最短间隔(ms) => 约 22fps, 避免每个视频帧都回读拖垮主循环
+  const v = document.createElement("video");
+  v.src = src; v.loop = true; v.muted = true; v.playsInline = true; v.preload = "auto";
+  const tmp = document.createElement("canvas"); tmp.width = tmp.height = S;
+  const tc = tmp.getContext("2d", { willReadFrequently: true });
+  const out = document.createElement("canvas"); out.width = out.height = S;
+  const oc = out.getContext("2d");
+  let ready = false, started = false, timer = null, lastKey = 0;
+  const hasRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
+  function keyFrame() {
+    if (v.readyState < 2) return;
+    const now = performance.now();
+    if (now - lastKey < MIN_DT) return;  // 限流: 抠像跟视频帧走但不超过 ~22fps
+    lastKey = now;
+    tc.drawImage(v, 0, 0, S, S);
+    const img = tc.getImageData(0, 0, S, S), d = img.data, span = hi - lo;
+    for (let i = 0; i < d.length; i += 4) {
+      const m = d[i] > d[i + 1] ? (d[i] > d[i + 2] ? d[i] : d[i + 2]) : (d[i + 1] > d[i + 2] ? d[i + 1] : d[i + 2]);
+      d[i + 3] = m <= lo ? 0 : m >= hi ? 255 : ((m - lo) * 255 / span) | 0;
+    }
+    oc.putImageData(img, 0, 0);
+    ready = true;
+  }
+  function pump() { keyFrame(); if (!v.paused) v.requestVideoFrameCallback(pump); }
+  return {
+    canvas: out,
+    get ready() { return ready; },
+    play() {
+      if (v.paused) v.play().catch(() => {});
+      if (hasRVFC) { if (!started) { started = true; v.requestVideoFrameCallback(pump); } }
+      else if (!timer) timer = setInterval(keyFrame, 33);
+    },
+    pause() { if (!v.paused) v.pause(); started = false; },
+  };
+}
+let bikeSprite = null, danceSprite = null;
+const getBikeSprite = () => bikeSprite || (bikeSprite = makeVideoSprite("./assets/video/riluo_bike.mp4", 16, 42));
+const getDanceSprite = () => danceSprite || (danceSprite = makeVideoSprite("./assets/video/huahai_dance.mp4", 16, 42));
 
 export function createCut(stage, game) {
   const { geom } = stage;
@@ -634,8 +678,13 @@ export function createCut(stage, game) {
   // ===== 企鹅吉祥物 =====
   function drawPenguin(c, t, bands, fv) {
     const bass = bands.bass || 0;
-    // 日落: 玩家视角在企鹅身后, 看它骑车沿公路驶向落日(背影 + 景色速度感)
-    if (sunset) { drawCyclist(c, t, bass, fv); return; }
+    // 日落: 玩家视角在企鹅身后, 看它骑车沿公路驶向落日 —— 用动态视频(纯黑底已抠透明)
+    if (sunset) {
+      const sp = getBikeSprite(); sp.play(); if (danceSprite) danceSprite.pause();
+      if (sp.ready) { drawVideoPenguin(c, sp, t, bass, fv, 0.60, 0.86); return; }
+      drawCyclist(c, t, bass, fv);                                // 视频未就绪: 矢量骑士兜底
+      return;
+    }
 
     const cx = geom.W * 0.5, baseY = geom.H * 0.87;
     const bob = Math.sin(t * 3) * 7 + bass * 12 + pengPulse * 6;
@@ -651,7 +700,13 @@ export function createCut(stage, game) {
     c.fillStyle = aura; c.beginPath(); c.arc(cx, cy - geom.H * 0.04, auraR, 0, Math.PI * 2); c.fill();
     c.restore();
 
-    // 花海: 跳舞 — 周期性转圈(2D 绕竖轴翻转) + 之间做摇摆/弹跳/squash 动作
+    // 花海: 优先用动态跳舞视频(纯黑底已抠透明); 未就绪则回退到 PENG 矢量跳舞
+    if (flower) {
+      const sp = getDanceSprite(); sp.play(); if (bikeSprite) bikeSprite.pause();
+      if (sp.ready) { drawVideoPenguin(c, sp, t, bass, fv, 0.54, 0.94); return; }
+    }
+
+    // 花海(兜底): 跳舞 — 周期性转圈(2D 绕竖轴翻转) + 之间做摇摆/弹跳/squash 动作
     let offX = 0, up = 0, tilt = Math.sin(t * 2) * 0.03 + (pengMood < 0 ? 0.05 : 0);
     let sx = 1, sy = 1;
     if (flower) {
@@ -695,6 +750,25 @@ export function createCut(stage, game) {
       c.font = `${Math.round(geom.W * 0.13)}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle";
       c.fillText("🐧", cx, cy - r);
     }
+  }
+
+  // ===== 通用: 把已抠像的企鹅视频精灵画到舞台(底部中心锚点 + 暖光垫 + 随鼓点微动) =====
+  // wf: 方形边长占画面宽比例; cyf: 底边落点占画面高比例
+  function drawVideoPenguin(c, sp, t, bass, fv, wf, cyf) {
+    const w = geom.W * (wf + pengPulse * 0.03), h = w;           // 视频离屏是正方形
+    const bob = Math.sin(t * 3) * 6 + bass * 10 + pengPulse * 8;
+    const cx = geom.W * 0.5, cy = geom.H * cyf - bob;
+    // 脚下暖光/粉光垫(氛围光)
+    c.save(); c.globalCompositeOperation = "lighter";
+    const gc = fv ? GOLD : ACCENT, gy = cy - h * 0.14, gr = w * 0.5;
+    const g = c.createRadialGradient(cx, gy, 6, cx, gy, gr);
+    g.addColorStop(0, hexA(gc, 0.24 + pengPulse * 0.14 + bass * 0.06));
+    g.addColorStop(0.55, hexA(flower ? F_ROSE : S_ORANGE, 0.08));
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g; c.beginPath(); c.arc(cx, gy, gr, 0, Math.PI * 2); c.fill();
+    c.restore();
+    // 视频本体(底边中心对齐到 cy)
+    c.drawImage(sp.canvas, cx - w / 2, cy - h, w, h);
   }
 
   // ===== 日落: 企鹅背影骑自行车(矢量绘制, 沿公路驶向落日) =====
@@ -1145,7 +1219,9 @@ export function createCut(stage, game) {
     c.restore();
   }
 
-  return { draw, update, auto, laneTap, tap, pointer, lanes: 2, floor: false };
+  // 离场: 暂停正在解码的企鹅视频, 避免后台持续耗 CPU/GPU
+  function destroy() { if (bikeSprite) bikeSprite.pause(); if (danceSprite) danceSprite.pause(); }
+  return { draw, update, auto, laneTap, tap, pointer, destroy, lanes: 2, floor: false };
 }
 
 // ---- 多边形/线段工具 ----

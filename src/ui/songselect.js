@@ -1,5 +1,5 @@
 // 选曲界面: 曲目卡片 + 自选音乐上传 + 难度选择弹层
-import { getIP } from "../data/ip.js?v=1785339764";
+import { getIP } from "../data/ip.js?v=1785342161";
 
 const DIFF = [
   { key: "easy", name: "EASY", lv: "★☆☆", tip: "跟拍 · 正拍稳踩" },
