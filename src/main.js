@@ -17,17 +17,15 @@ const screens = document.getElementById("screens");
 let game = null;
 let inputBound = false;
 let currentSong = null;                 // 当前选中的曲目(用于"再来一次"重开同一首)
-let currentTheme = "neon";              // 当前视觉主题(与歌曲解耦: 任意歌可配任意主题)
 
-// ---------- 曲库(纯音乐来源) ----------
-// 主题(视觉)与歌曲(音频)彻底解耦: 首页可任选一首歌 + 任选一套主题皮肤组合进场。
+// ---------- 曲库: 就两首歌, 每首自带主题(选哪首 => 进哪首对应的界面) ----------
 const SONGS = [
-  { id: "neon", name: "霓虹夜航", genre: "City Pop", cover: "./assets/bg/cover.png", kind: "synth" },
-  { id: "huahai", name: "花海主题", genre: "Sakura Pop", cover: "./assets/bg/huahai_cover.png",
-    kind: "mp3", url: "./assets/audio/huahai.mp3" },
+  { id: "neon", name: "霓虹夜航", genre: "City Pop", kind: "synth", theme: "neon" },
+  { id: "huahai", name: "花海主题", genre: "Sakura Pop", kind: "mp3",
+    url: "./assets/audio/huahai.mp3", theme: "flower" },
 ];
 
-// ---------- 主题皮肤(视觉/配色/切割物, 不绑定具体歌曲) ----------
+// ---------- 主题皮肤(视觉/配色/切割物, 由歌曲自带的 theme 决定) ----------
 const THEMES = {
   neon:   { colorA: "#7b3cff", colorB: "#22e1ff", emoji: "💎", scene: "切水晶" },
   flower: { colorA: "#ff6fb5", colorB: "#c86bff", emoji: "🌸", scene: "切花" },
@@ -67,20 +65,18 @@ function goHome() {
   clearScreens();
   renderHome(screens, {
     songs: SONGS,
-    theme: currentTheme,
-    onStart: ({ song, theme }) => playSelected(song, theme),
-    onThemeChange: (theme) => { currentTheme = theme; },
-    onCustom: (file, theme) => startCustom(file, theme),
+    onStart: (song) => playSelected(song),
+    onCustom: (file) => startCustom(file),
   });
 }
 
-// 选定"歌曲 + 主题"组合进场(合成曲走内置谱面, mp3/自选 走自动生成谱面)
-function playSelected(song, theme) {
+// 选定歌曲进场: 主题由歌曲自带(霓虹=>霓虹界面, 花海=>花海界面)
+function playSelected(song) {
   currentSong = song;
-  currentTheme = theme || currentTheme;
-  if (song.kind === "synth") startSynthSong(currentTheme);
-  else if (song._buf) launchBuffer(song._buf, song, currentTheme);   // 已解码(自选/重开): 直接复用
-  else startMp3Song(song, currentTheme);
+  const theme = song.theme || "neon";
+  if (song.kind === "synth") startSynthSong(theme);
+  else if (song._buf) launchBuffer(song._buf, song, theme);   // 已解码(自选/重开): 直接复用
+  else startMp3Song(song, theme);
 }
 
 // ---------- 内置合成曲(霓虹夜航) + 任选主题皮肤 ----------
@@ -111,15 +107,14 @@ async function startMp3Song(s, theme) {
   launchBuffer(audioBuf, s, theme);
 }
 
-// ---------- 自选本地音乐 ----------
-async function startCustom(file, theme = currentTheme) {
+// ---------- 自选本地音乐(沿用霓虹主题) ----------
+async function startCustom(file, theme = "neon") {
   loading("分析音乐、自动生成谱面…");
   await unlockAudio();
   const { ctx } = getAudio();
   const audioBuf = await ctx.decodeAudioData(await file.arrayBuffer());
-  const info = { id: "custom", name: file.name.replace(/\.[^.]+$/, ""), genre: "AUTO", custom: true };
+  const info = { id: "custom", name: file.name.replace(/\.[^.]+$/, ""), genre: "AUTO", custom: true, theme };
   currentSong = { ...info, _buf: audioBuf };
-  currentTheme = theme;
   launchBuffer(audioBuf, info, theme);
 }
 
@@ -157,7 +152,7 @@ function showResult(result) {
   if (result.song.levelId) recordClear(result.song.levelId, result.rank, result.score);
   renderResult(screens, result, {
     onRetry: () => {
-      if (currentSong) { playSelected(currentSong, currentTheme); return; }  // 重开当前"歌+主题"组合
+      if (currentSong) { playSelected(currentSong); return; }  // 重开当前歌曲(主题随歌)
       goHome();
     },
     onHome: () => goHome(),

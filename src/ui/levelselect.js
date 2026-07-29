@@ -4,15 +4,12 @@ import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js";
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
 // 星光闪烁、音符上浮、标题流光 + 海报整体轻微呼吸缩放, 让静图"活"起来。
-const THEME_META = {
-  neon:   { label: "💎 霓虹主题" },
-  flower: { label: "🌸 花海主题" },
-};
+// 每首歌自带一个小图标, 让选曲一眼能分清(霓虹/花海)
+const SONG_ICON = { neon: "💎", flower: "🌸" };
 
-export function renderHome(root, { songs, theme, onStart, onThemeChange, onCustom }) {
-  const list = songs && songs.length ? songs : [{ id: "neon", name: "霓虹夜航", genre: "City Pop" }];
-  let sel = 0;                                   // 选中的歌
-  let curTheme = theme || "neon";               // 选中的视觉主题(与歌曲解耦)
+export function renderHome(root, { songs, onStart, onCustom }) {
+  const list = songs && songs.length ? songs : [{ id: "neon", name: "霓虹夜航", genre: "City Pop", theme: "neon" }];
+  let sel = 0;                                   // 选中的歌(选哪首 => 进哪首对应界面)
 
   const el = document.createElement("div");
   el.className = "screen home home--cover";
@@ -20,8 +17,7 @@ export function renderHome(root, { songs, theme, onStart, onThemeChange, onCusto
     <div class="cover">
       <img class="cover__img" id="coverImg" src="./assets/bg/cover.png" alt="一拍即合 · 节拍切击" draggable="false" />
       <canvas class="cover__fx" id="coverFx"></canvas>
-      <button class="cover__theme" id="themeBtn">${THEME_META[curTheme].label}</button>
-      <button class="cover__pickbtn" id="songBtn">🎵 <b>${list[0].name}</b> ▾</button>
+      <button class="cover__pickbtn" id="songBtn"></button>
       <button class="hot hot--play" id="startBtn" aria-label="开始"></button>
     </div>
 
@@ -37,26 +33,21 @@ export function renderHome(root, { songs, theme, onStart, onThemeChange, onCusto
   `;
 
   const songBtn = el.querySelector("#songBtn");
-  const themeBtn = el.querySelector("#themeBtn");
   const sheet = el.querySelector("#songSheet");
   const listEl = el.querySelector("#songList");
 
-  function paintSongBtn() { songBtn.innerHTML = `🎵 <b>${list[sel].name}</b> ▾`; }
-  function paintTheme() {
-    themeBtn.textContent = THEME_META[curTheme].label;
-    themeBtn.classList.toggle("cover__theme--flower", curTheme === "flower");
-  }
+  function iconOf(s) { return SONG_ICON[s.theme] || "🎵"; }
+  function paintSongBtn() { songBtn.innerHTML = `${iconOf(list[sel])} <b>${list[sel].name}</b> ▾`; }
   function paintList() {
     listEl.innerHTML = list.map((s, i) => `
       <button class="sheet__row${i === sel ? " on" : ""}" data-i="${i}">
+        <span class="sheet__ic">${iconOf(s)}</span>
         <span class="sheet__nm">${s.name}</span>
         <span class="sheet__gn">${s.genre || ""}</span>
         ${i === sel ? '<span class="sheet__ck">✓</span>' : ""}
       </button>`).join("");
     listEl.querySelectorAll(".sheet__row").forEach((row) => {
-      row.addEventListener("click", () => {
-        sel = +row.dataset.i; paintSongBtn(); paintList(); closeSheet();
-      });
+      row.addEventListener("click", () => { sel = +row.dataset.i; paintSongBtn(); closeSheet(); });
     });
   }
   function openSheet() { paintList(); sheet.hidden = false; }
@@ -66,19 +57,14 @@ export function renderHome(root, { songs, theme, onStart, onThemeChange, onCusto
   el.querySelector("#sheetClose").addEventListener("click", closeSheet);
   sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
 
-  themeBtn.addEventListener("click", () => {
-    curTheme = curTheme === "neon" ? "flower" : "neon";
-    paintTheme();
-    onThemeChange && onThemeChange(curTheme);
-  });
-
-  el.querySelector("#startBtn").addEventListener("click", () => onStart({ song: list[sel], theme: curTheme }));
+  // 开始开拍 => 进入所选歌曲对应的界面(主题随歌)
+  el.querySelector("#startBtn").addEventListener("click", () => onStart(list[sel]));
 
   const fi = el.querySelector("#fileInput");
   el.querySelector("#customBtn").addEventListener("click", () => fi.click());
-  fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f, curTheme); } });
+  fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f); } });
 
-  paintTheme(); paintSongBtn();
+  paintSongBtn();
   root.appendChild(el);
   startCoverAnim(el.querySelector("#coverFx"));
 }
