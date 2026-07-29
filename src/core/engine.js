@@ -6,13 +6,13 @@
 //   tap(x, y)              单键/单击动作(音符跳跃)
 //   laneTap(lane)          多轨动作(敲击工坊); mode.lanes 声明轨数
 //   pointer(type, x, y)    指针滑动(节奏切割), type: down/move/up
-import { getAudio } from "../audio/context.js?v=1785338504";
-import { createConductor } from "./conductor.js?v=1785338504";
-import { createScorer } from "./judge.js?v=1785338504";
-import { playHitSfx } from "../audio/synth.js?v=1785338504";
-import { createStage } from "../render/stage.js?v=1785338504";
-import { createScene } from "../render/scenes/index.js?v=1785338504";
-import { approachTime } from "../render/config.js?v=1785338504";
+import { getAudio } from "../audio/context.js?v=1785339250";
+import { createConductor } from "./conductor.js?v=1785339250";
+import { createScorer } from "./judge.js?v=1785339250";
+import { playHitSfx } from "../audio/synth.js?v=1785339250";
+import { createStage } from "../render/stage.js?v=1785339250";
+import { createScene } from "../render/scenes/index.js?v=1785339250";
+import { approachTime } from "../render/config.js?v=1785339250";
 
 const LEAD_IN = 3.0;
 const LANE_KEYS = { d: 0, f: 1, j: 2, k: 3, D: 0, F: 1, J: 2, K: 3 };

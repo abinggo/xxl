@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785338504";
-import { hexA } from "../stage.js?v=1785338504";
-import { clamp, lerp } from "./base.js?v=1785338504";
+import { COLORS } from "../config.js?v=1785339250";
+import { hexA } from "../stage.js?v=1785339250";
+import { clamp, lerp } from "./base.js?v=1785339250";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -634,9 +634,9 @@ export function createCut(stage, game) {
     const bob = Math.sin(t * 3) * 7 + bass * 12 + pengPulse * 6;
     const cy = baseY - bob;
 
-    // 光环
+    // 光环(随企鹅缩小同步收一点)
     c.save(); c.globalCompositeOperation = "lighter";
-    const auraR = geom.W * (0.34 + bass * 0.05 + pengPulse * 0.04);
+    const auraR = geom.W * (0.30 + bass * 0.05 + pengPulse * 0.04);
     const aura = c.createRadialGradient(cx, cy - geom.H * 0.06, 10, cx, cy - geom.H * 0.06, auraR);
     aura.addColorStop(0, hexA(fv ? GOLD : ACCENT, 0.32 + pengPulse * 0.15));
     aura.addColorStop(0.5, hexA(flower ? F_ROSE : sunset ? S_RED : BLUE, 0.12));
@@ -644,26 +644,92 @@ export function createCut(stage, game) {
     c.fillStyle = aura; c.beginPath(); c.arc(cx, cy - geom.H * 0.06, auraR, 0, Math.PI * 2); c.fill();
     c.restore();
 
+    // 每主题不同律动: 日落=骑车前倾+颠簸, 花海=左右摇摆+弹跳跳舞, 其它=轻微摆
+    let offX = 0, extraUp = 0;
+    let tilt = Math.sin(t * 2) * 0.03 + (pengMood < 0 ? 0.05 : 0);
+    if (flower) {
+      offX = Math.sin(t * 3) * geom.W * 0.035;
+      extraUp = Math.abs(Math.sin(t * 6)) * 14;                 // 弹跳
+      tilt = Math.sin(t * 3) * 0.16;                            // 左右摇摆
+    } else if (sunset) {
+      extraUp = Math.abs(Math.sin(t * 7)) * 5;                  // 骑行颠簸
+      tilt = -0.05 + Math.sin(t * 7) * 0.025;                   // 前倾
+    }
+
     if (PENG) {
-      const w = geom.W * (0.46 + pengPulse * 0.03);
+      const w = geom.W * (0.368 + pengPulse * 0.024);           // 80% 大小(0.46 -> 0.368)
       const h = w * (PENG.height / PENG.width);
-      const tilt = Math.sin(t * 2) * 0.03 + (pengMood < 0 ? 0.05 : 0);
+      const px = cx + offX, py = cy - extraUp;
+      if (sunset) {                                             // 骑车: 先画速度线 + 自行车, 企鹅坐其上
+        drawSpeedLines(c, t, cy);
+        drawBicycle(c, cx, baseY + geom.H * 0.02, w, t, fv);
+      }
       c.save();
-      c.translate(cx, cy);
+      c.translate(px, py);
       c.rotate(tilt);
-      c.shadowColor = hexA(fv ? GOLD : ACCENT, 0.9); c.shadowBlur = 26 + pengPulse * 20;
+      c.shadowColor = hexA(fv ? GOLD : ACCENT, 0.9); c.shadowBlur = 22 + pengPulse * 18;
       c.drawImage(PENG, -w / 2, -h + geom.H * 0.02, w, h);
       c.restore();
     } else {
       c.save(); c.globalCompositeOperation = "lighter";
-      const r = geom.W * 0.14;
+      const r = geom.W * 0.11;
       const b = c.createRadialGradient(cx, cy - r, 4, cx, cy - r, r);
-      b.addColorStop(0, "#ffffff"); b.addColorStop(1, PURPLE);
+      b.addColorStop(0, "#ffffff"); b.addColorStop(1, sunset ? S_ORANGE : PURPLE);
       c.fillStyle = b; c.beginPath(); c.arc(cx, cy - r, r, 0, Math.PI * 2); c.fill();
       c.restore();
-      c.font = `${Math.round(geom.W * 0.16)}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle";
+      c.font = `${Math.round(geom.W * 0.13)}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle";
       c.fillText("🐧", cx, cy - r);
     }
+  }
+
+  // 日落: 速度线(企鹅身后右->左掠过, 营造前进感)
+  function drawSpeedLines(c, t, cy) {
+    c.save(); c.globalCompositeOperation = "lighter"; c.lineCap = "round";
+    for (let i = 0; i < 5; i++) {
+      const prog = (t * 1.6 + i * 0.37) % 1;
+      const x = geom.W * (1.05 - prog * 1.25);
+      const y = cy - geom.H * 0.02 + (i - 2) * geom.H * 0.028;
+      const len = geom.W * (0.08 + (i % 2) * 0.05);
+      const a = Math.sin(prog * Math.PI) * 0.45;
+      c.strokeStyle = hexA(i % 2 ? S_GOLD : S_ORANGE, a); c.lineWidth = 3;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + len, y); c.stroke();
+    }
+    c.restore();
+  }
+
+  // 日落: 发光矢量自行车(轮子转动 + 曲柄旋转), 企鹅坐其上像在骑行
+  function drawBicycle(c, cx, groundY, w, t, fv) {
+    const R = w * 0.26, dx = w * 0.5, wy = groundY + R * 0.55, spin = t * 7;
+    const rim = fv ? GOLD : S_GOLD, frame = fv ? GOLD : S_ORANGE;
+    c.save();
+    // 地面拖影
+    c.fillStyle = "rgba(20,6,30,0.28)";
+    c.beginPath(); c.ellipse(cx, wy + R * 0.95, dx + R, R * 0.22, 0, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = "lighter"; c.lineCap = "round";
+    // 车架(大部分被企鹅挡住, 只露轮与下缘)
+    c.strokeStyle = hexA(frame, 0.9); c.lineWidth = w * 0.035; c.shadowColor = frame; c.shadowBlur = 12;
+    c.beginPath();
+    c.moveTo(cx - dx, wy); c.lineTo(cx, wy - R * 1.0); c.lineTo(cx + dx, wy);
+    c.moveTo(cx, wy - R * 1.0); c.lineTo(cx, wy);
+    c.stroke();
+    // 两轮
+    for (const side of [-1, 1]) {
+      const hx = cx + side * dx;
+      c.strokeStyle = hexA(rim, 0.92); c.lineWidth = w * 0.03; c.shadowColor = rim; c.shadowBlur = 14;
+      c.beginPath(); c.arc(hx, wy, R, 0, Math.PI * 2); c.stroke();
+      c.shadowBlur = 0; c.strokeStyle = hexA("#ffffff", 0.5); c.lineWidth = 1.6;
+      for (let k = 0; k < 6; k++) {
+        const a = spin + k * Math.PI / 3;
+        c.beginPath(); c.moveTo(hx, wy); c.lineTo(hx + Math.cos(a) * R * 0.88, wy + Math.sin(a) * R * 0.88); c.stroke();
+      }
+      c.fillStyle = "#ffffff"; c.beginPath(); c.arc(hx, wy, w * 0.028, 0, Math.PI * 2); c.fill();
+    }
+    // 旋转曲柄脚踏(中轴处)
+    const cr = w * 0.1;
+    c.strokeStyle = hexA("#fff5d0", 0.85); c.lineWidth = w * 0.022; c.shadowBlur = 0;
+    c.beginPath(); c.moveTo(cx, wy); c.lineTo(cx + Math.cos(spin) * cr, wy + Math.sin(spin) * cr); c.stroke();
+    c.beginPath(); c.moveTo(cx, wy); c.lineTo(cx - Math.cos(spin) * cr, wy - Math.sin(spin) * cr); c.stroke();
+    c.restore();
   }
 
   // 企鹅周围的霓虹螺旋(海报氛围)
@@ -731,7 +797,9 @@ export function createCut(stage, game) {
     if (dt < CUT.good) {
       const k = 1 - dt / CUT.good;
       c.save(); c.globalCompositeOperation = "lighter";
-      c.strokeStyle = hexA("#ffffff", 0.2 + k * 0.55); c.lineWidth = 2.5;
+      // 日落: 光圈用暖金、更淡更细, 不再是突兀的大白圈
+      if (sunset) { c.strokeStyle = hexA(S_GOLD, 0.05 + k * 0.24); c.lineWidth = 1.5; }
+      else { c.strokeStyle = hexA("#ffffff", 0.2 + k * 0.55); c.lineWidth = 2.5; }
       c.beginPath(); c.arc(x, y, lerp(a + 40, a + 8, k), 0, Math.PI * 2); c.stroke();
       c.restore();
     }

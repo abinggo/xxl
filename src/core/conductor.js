@@ -1,6 +1,6 @@
 // Conductor: 歌曲时间的唯一权威时钟
 // 所有判定与渲染位置都基于 AudioContext.currentTime, 绝不用 Date.now / 帧数累加
-import { getAudio } from "../audio/context.js?v=1785338504";
+import { getAudio } from "../audio/context.js?v=1785339250";
 
 export function createConductor() {
   const { ctx } = getAudio();
