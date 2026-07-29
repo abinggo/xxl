@@ -89,6 +89,26 @@ function lead(ctx, dest, t, freq, dur, gain = 1) {
   o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
 }
 
+// 铺底和声(pad): 一小节一个和弦, 双失谐锯齿叠 root/五度/八度, 低通柔化, 慢起慢落 => 空间感
+function pad(ctx, dest, t, freqs, dur, gain = 1) {
+  const g = ctx.createGain();
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass"; lp.frequency.value = 1900; lp.Q.value = 0.5;
+  const atk = Math.min(0.45, dur * 0.3), rel = Math.min(0.6, dur * 0.4);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.12 * gain, t + atk);
+  g.gain.setValueAtTime(0.12 * gain, t + Math.max(atk, dur - rel));
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  for (const f of freqs) {
+    for (const det of [-7, 7]) {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth"; o.frequency.value = f; o.detune.value = det;
+      o.connect(lp); o.start(t); o.stop(t + dur + 0.05);
+    }
+  }
+  lp.connect(g); g.connect(dest);
+}
+
 // 打击命中音效(玩家操作反馈, 独立于音乐床)
 export function playHitSfx(judgement) {
   const { ctx, master } = getAudio();
@@ -127,6 +147,7 @@ export function createMusicPlayer(events, { onEnd } = {}) {
         case "hat": hat(ctx, master, when, e.g, e.open); break;
         case "bass": bass(ctx, master, when, e.freq, e.dur, e.g); break;
         case "lead": lead(ctx, master, when, e.freq, e.dur, e.g); break;
+        case "pad": pad(ctx, master, when, e.freqs, e.dur, e.g); break;
       }
     }
     if (idx >= events.length && now > endTime) {

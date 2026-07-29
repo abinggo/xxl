@@ -25,7 +25,8 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
   const approach = approachTime(meta.beatDur);
 
   const chart = events.map((e) => ({ ...e, _done: false, _judge: null, _outcome: null, _rt: 0, lane: e.lane }));
-  const scorer = createScorer(chart.length);
+  // 道具方块(炸弹/加速/冰冻)不计入总音符数, 也不参与判定统计/满连判定
+  const scorer = createScorer(chart.filter((e) => !e.item).length);
   let raf = 0, finished = false, lastMilestone = 0, autoplay = false;
 
   // ---- 提供给 mode 的上下文 ----
@@ -42,6 +43,7 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
       return res;
     },
     breakCombo() { scorer.breakCombo(); },
+    addScore(delta) { return scorer.addRaw(delta); },
     flash: (c, a) => stage.flash(c, a),
     shakeBy: (n) => stage.shakeBy(n),
     celebrate,

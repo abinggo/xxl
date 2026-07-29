@@ -200,24 +200,50 @@ export function createStage(canvas, { song }) {
     ctx.fillStyle = gc; ctx.shadowColor = gc; ctx.shadowBlur = 10;
     ctx.fillText(grd, W - 24, 71); ctx.shadowBlur = 0;
 
-    // ---- 进度条 + 三星 ----
-    const bx = 20, bw = W - 40, by = 98, bh = 6;
-    ctx.fillStyle = "rgba(255,255,255,0.10)";
-    roundRect(ctx, bx, by, bw, bh, 3); ctx.fill();
+    // ---- 进度条 + 三星(醒目霓虹, 流光 + 亮头) ----
+    const bx = 20, bw = W - 40, by = 96, bh = 10, br = bh / 2;
+    const t = world.t || 0;
     const prog = Math.max(0, Math.min(1, world.progress || 0));
+    // 轨道: 更亮的底 + 霓虹描边
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    roundRect(ctx, bx, by, bw, bh, br); ctx.fill();
+    ctx.strokeStyle = hexA(cA, 0.45); ctx.lineWidth = 1.5;
+    roundRect(ctx, bx, by, bw, bh, br); ctx.stroke();
     if (prog > 0) {
+      const fw = Math.max(bh, bw * prog);
+      ctx.save();
+      roundRect(ctx, bx, by, fw, bh, br); ctx.clip();
+      // 高饱和霓虹渐变 + 强发光
       const pg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-      pg.addColorStop(0, cA); pg.addColorStop(0.5, COLORS.gold); pg.addColorStop(1, cB);
-      ctx.fillStyle = pg; ctx.shadowColor = cB; ctx.shadowBlur = 8;
-      roundRect(ctx, bx, by, bw * prog, bh, 3); ctx.fill();
-      ctx.shadowBlur = 0;
+      pg.addColorStop(0, "#22e1ff"); pg.addColorStop(0.5, "#ffd84d"); pg.addColorStop(1, "#ff4fd8");
+      ctx.fillStyle = pg; ctx.shadowColor = COLORS.gold; ctx.shadowBlur = 16;
+      ctx.fillRect(bx, by, fw, bh); ctx.shadowBlur = 0;
+      // 上缘高光
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      roundRect(ctx, bx + 2, by + 1.5, fw - 4, 2.5, 1.25); ctx.fill();
+      // 流动光泽
+      const shineX = bx + ((t * 150) % (fw + 90)) - 45;
+      const sg = ctx.createLinearGradient(shineX - 34, 0, shineX + 34, 0);
+      sg.addColorStop(0, "rgba(255,255,255,0)"); sg.addColorStop(0.5, "rgba(255,255,255,0.6)"); sg.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = sg; ctx.fillRect(bx, by, fw, bh);
+      ctx.restore();
+      // 进度头亮点
+      const hx = bx + fw, hy = by + bh / 2;
+      ctx.save(); ctx.globalCompositeOperation = "lighter";
+      const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 13);
+      hg.addColorStop(0, "#ffffff"); hg.addColorStop(0.4, hexA(COLORS.gold, 0.9)); hg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
+    // 三星(带描边, 亮暗对比更强)
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (let i = 0; i < 3; i++) {
       const at = (i + 1) / 4, sx = bx + bw * at, reached = prog >= at;
-      ctx.font = "900 13px system-ui, sans-serif";
-      ctx.fillStyle = reached ? COLORS.gold : "rgba(255,255,255,0.25)";
-      if (reached) { ctx.shadowColor = COLORS.gold; ctx.shadowBlur = 10; }
+      ctx.font = "900 15px system-ui, sans-serif";
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(6,4,16,0.9)";
+      ctx.strokeText("★", sx, by + bh / 2);
+      ctx.fillStyle = reached ? COLORS.gold : "rgba(210,220,255,0.45)";
+      ctx.shadowColor = COLORS.gold; ctx.shadowBlur = reached ? 12 : 0;
       ctx.fillText("★", sx, by + bh / 2);
       ctx.shadowBlur = 0;
     }

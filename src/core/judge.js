@@ -48,8 +48,11 @@ export function createScorer(totalNotes) {
   // 空挥/抢拍: 只断连击, 不计入音符统计
   function breakCombo() { combo = 0; }
 
+  // 道具直接加减分(不计入判定统计, 不影响连击): 炸弹扣分 / 加速道具加分 / 冰冻加分
+  function addRaw(delta) { score = Math.max(0, score + delta); return Math.round(score); }
+
   return {
-    add, breakCombo,
+    add, breakCombo, addRaw,
     get score() { return Math.round(score); },
     get combo() { return combo; },
     get maxCombo() { return maxCombo; },

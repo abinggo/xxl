@@ -6,6 +6,83 @@ import { freq } from "./notes.js";
 const STEPS_PER_BAR = 16;
 const BEATS_PER_BAR = 4;
 
+// ============ "霓虹夜航" — 完整 City Pop 单曲(D大调, 100 BPM, 约 2:15) ============
+// 以"段落"编排完整歌: 前奏→主歌A→预副歌→副歌→主歌B→副歌2→桥段→终副歌→尾奏
+// 每段自带鼓型/和弦走向/主旋律; 副歌复用同一段落数据, 保证记忆点统一。
+// 鼓型(每小节 16 步), 复用:
+const D_CHILL = { kick: "x.......x.......", snare: "....x.......x...", hat: "x.x.x.x.x.x.x.x." }; // 慵懒主歌
+const D_DRIVE = { kick: "x...x...x...x..x", snare: "....x.......x...", hat: "xxxxxxxxxxxxxxxx" }; // 推进副歌
+const D_PRE   = { kick: "x...x...x...x...", snare: "....x...x...x.x.", hat: "x.x.x.x.x.x.x.x." }; // 预副歌铺垫
+const D_BRIDGE= { kick: "x.......x.......", snare: "............x...", hat: "..x...x...x...x." }; // 桥段留白
+const D_INTRO = { kick: "x...............", snare: "............x...", hat: "..x...x...x...x." }; // 前奏空灵
+const D_OUTRO = { kick: "x...............", snare: "............x...", hat: "x...x...x...x..." }; // 尾奏收束
+
+// 和弦走向(每小节低音根音): 主歌 I-vi-ii-V, 副歌 IV-V-I-vi
+const CH_VERSE  = ["D2", "B2", "E2", "A2", "D2", "B2", "G2", "A2"];
+const CH_CHORUS = ["G2", "A2", "D2", "B2", "G2", "A2", "D2", "A2"];
+const CH_PRE    = ["B2", "A2", "G2", "A2"];
+const CH_BRIDGE = ["E2", "A2", "B2", "F#2"];
+const CH_INTRO  = ["D2", "A2", "B2", "F#2"];
+const CH_OUTRO  = ["G2", "A2", "D2", "D2"];
+
+// 主旋律(段内相对拍, 每小节4拍): 主歌舒缓 / 副歌明亮高走
+const LEAD_VERSE = [
+  { b: 0, n: "A4", d: 1 }, { b: 1, n: "F#4", d: 1 }, { b: 2, n: "A4", d: 1 }, { b: 3, n: "B4", d: 1 },
+  { b: 4, n: "A4", d: 1.5 }, { b: 5.5, n: "F#4", d: 0.5 }, { b: 6, n: "E4", d: 2 },
+  { b: 8, n: "B4", d: 1 }, { b: 9, n: "A4", d: 1 }, { b: 10, n: "F#4", d: 1 }, { b: 11, n: "A4", d: 1 },
+  { b: 12, n: "B4", d: 1 }, { b: 13, n: "C#5", d: 1 }, { b: 14, n: "D5", d: 2 },
+  { b: 16, n: "D5", d: 1 }, { b: 17, n: "A4", d: 1 }, { b: 18, n: "B4", d: 1 }, { b: 19, n: "A4", d: 1 },
+  { b: 20, n: "F#4", d: 1.5 }, { b: 21.5, n: "A4", d: 0.5 }, { b: 22, n: "E4", d: 2 },
+  { b: 24, n: "F#4", d: 1 }, { b: 25, n: "A4", d: 1 }, { b: 26, n: "B4", d: 1 }, { b: 27, n: "C#5", d: 1 },
+  { b: 28, n: "D5", d: 1 }, { b: 29, n: "B4", d: 1 }, { b: 30, n: "A4", d: 2 },
+];
+const LEAD_CHORUS = [
+  { b: 0, n: "D5", d: 1 }, { b: 1, n: "E5", d: 1 }, { b: 2, n: "F#5", d: 1 }, { b: 3, n: "E5", d: 1 },
+  { b: 4, n: "D5", d: 1 }, { b: 5, n: "A4", d: 1 }, { b: 6, n: "B4", d: 2 },
+  { b: 8, n: "B4", d: 1 }, { b: 9, n: "C#5", d: 1 }, { b: 10, n: "D5", d: 1 }, { b: 11, n: "E5", d: 1 },
+  { b: 12, n: "F#5", d: 2 }, { b: 14, n: "E5", d: 1 }, { b: 15, n: "D5", d: 1 },
+  { b: 16, n: "E5", d: 1 }, { b: 17, n: "F#5", d: 1 }, { b: 18, n: "G5", d: 1 }, { b: 19, n: "F#5", d: 1 },
+  { b: 20, n: "E5", d: 1 }, { b: 21, n: "D5", d: 1 }, { b: 22, n: "B4", d: 2 },
+  { b: 24, n: "D5", d: 1 }, { b: 25, n: "E5", d: 1 }, { b: 26, n: "F#5", d: 1 }, { b: 27, n: "A5", d: 1 },
+  { b: 28, n: "G5", d: 1 }, { b: 29, n: "F#5", d: 1 }, { b: 30, n: "E5", d: 1 }, { b: 31, n: "D5", d: 1 },
+];
+const LEAD_PRE = [
+  { b: 0, n: "F#4", d: 1 }, { b: 1, n: "G4", d: 1 }, { b: 2, n: "A4", d: 1 }, { b: 3, n: "B4", d: 1 },
+  { b: 4, n: "C#5", d: 1 }, { b: 5, n: "D5", d: 1 }, { b: 6, n: "E5", d: 2 },
+  { b: 8, n: "E5", d: 1 }, { b: 9, n: "D5", d: 1 }, { b: 10, n: "C#5", d: 1 }, { b: 11, n: "B4", d: 1 },
+  { b: 12, n: "A4", d: 1 }, { b: 13, n: "B4", d: 1 }, { b: 14, n: "C#5", d: 1 }, { b: 15, n: "E5", d: 1 },
+];
+const LEAD_BRIDGE = [
+  { b: 0, n: "A4", d: 2 }, { b: 2, n: "G4", d: 2 },
+  { b: 4, n: "F#4", d: 2 }, { b: 6, n: "E4", d: 2 },
+  { b: 8, n: "D4", d: 1 }, { b: 9, n: "E4", d: 1 }, { b: 10, n: "F#4", d: 2 },
+  { b: 12, n: "A4", d: 2 }, { b: 14, n: "B4", d: 2 },
+];
+const LEAD_INTRO = [
+  { b: 0, n: "D5", d: 2 }, { b: 2, n: "F#5", d: 2 },
+  { b: 4, n: "A5", d: 1.5 }, { b: 5.5, n: "E5", d: 0.5 }, { b: 6, n: "F#5", d: 2 },
+  { b: 8, n: "E5", d: 1 }, { b: 9, n: "D5", d: 1 }, { b: 10, n: "A4", d: 2 },
+  { b: 12, n: "B4", d: 2 }, { b: 14, n: "A4", d: 2 },
+];
+const LEAD_OUTRO = [
+  { b: 0, n: "D5", d: 2 }, { b: 2, n: "A4", d: 2 },
+  { b: 4, n: "F#4", d: 2 }, { b: 6, n: "D4", d: 2 },
+  { b: 8, n: "F#4", d: 4 },
+  { b: 12, n: "D4", d: 4 },
+];
+
+const CUT_SECTIONS = [
+  { name: "intro",   bars: 4, drums: D_INTRO,  chords: CH_INTRO,  lead: LEAD_INTRO,  padGain: 0.9, leadGain: 0.8 },
+  { name: "verseA",  bars: 8, drums: D_CHILL,  chords: CH_VERSE,  lead: LEAD_VERSE,  padGain: 0.8 },
+  { name: "pre",     bars: 4, drums: D_PRE,    chords: CH_PRE,    lead: LEAD_PRE,    padGain: 0.9 },
+  { name: "chorus",  bars: 8, drums: D_DRIVE,  chords: CH_CHORUS, lead: LEAD_CHORUS, padGain: 1.0 },
+  { name: "verseB",  bars: 8, drums: D_CHILL,  chords: CH_VERSE,  lead: LEAD_VERSE,  padGain: 0.8 },
+  { name: "chorus2", bars: 8, drums: D_DRIVE,  chords: CH_CHORUS, lead: LEAD_CHORUS, padGain: 1.0 },
+  { name: "bridge",  bars: 4, drums: D_BRIDGE, chords: CH_BRIDGE, lead: LEAD_BRIDGE, padGain: 1.0, leadGain: 0.85 },
+  { name: "final",   bars: 8, drums: D_DRIVE,  chords: CH_CHORUS, lead: LEAD_CHORUS, padGain: 1.0 },
+  { name: "outro",   bars: 4, drums: D_OUTRO,  chords: CH_OUTRO,  lead: LEAD_OUTRO,  padGain: 0.85, leadGain: 0.8 },
+];
+
 // ---- 曲目定义 ----
 export const TRACKS = [
   {
@@ -47,20 +124,9 @@ export const TRACKS = [
   {
     id: "cut", name: "节拍切击", artist: "QQ音乐", ip: "penguin",
     emoji: "🐧", colorA: "#2fd0ff", colorB: "#9a6bff",
-    genre: "City Pop", bpm: 94, bars: 4, loops: 3,
+    genre: "City Pop", bpm: 100, songName: "霓虹夜航", items: true,
     scene: "cut", sceneName: "全屏切击", verb: "音符抛物线飞出, 滑动屏幕划过即可切开",
-    drums: {
-      kick:  "x.......x.......",
-      snare: "....x.......x...",
-      hat:   "x.x.x.x.x.x.x.x.",
-    },
-    chords: ["D2", "A2", "B2", "F#2"],
-    lead: [
-      { b: 0, n: "F#4", d: 1 }, { b: 1, n: "A4", d: 1 }, { b: 2, n: "B4", d: 1.5 }, { b: 3.5, n: "A4", d: 0.5 },
-      { b: 4, n: "C#5", d: 1 }, { b: 5, n: "B4", d: 1 }, { b: 6, n: "A4", d: 2 },
-      { b: 8, n: "E5", d: 1 }, { b: 9, n: "C#5", d: 1 }, { b: 10, n: "B4", d: 1.5 }, { b: 11.5, n: "A4", d: 0.5 },
-      { b: 12, n: "F#4", d: 1 }, { b: 13, n: "A4", d: 1 }, { b: 14, n: "F#4", d: 2 },
-    ],
+    sections: CUT_SECTIONS,
   },
 ];
 
@@ -68,44 +134,18 @@ export const TRACKS = [
 export function compileTrack(track) {
   const beatDur = 60 / track.bpm;
   const stepDur = beatDur / 4;
-  const loopBeats = track.bars * BEATS_PER_BAR;
-  const loopDur = loopBeats * beatDur;
 
   const music = [];
   const kickTimes = [];
   const snareTimes = [];
   const leadOnsets = []; // {time, freq, dBeats}
+  const ctx = { music, kickTimes, snareTimes, leadOnsets, beatDur, stepDur };
 
-  for (let L = 0; L < track.loops; L++) {
-    const loopStart = L * loopDur;
-    for (let bar = 0; bar < track.bars; bar++) {
-      const barStart = loopStart + bar * BEATS_PER_BAR * beatDur;
-      const root = track.chords[bar % track.chords.length];
-      for (let s = 0; s < STEPS_PER_BAR; s++) {
-        const t = barStart + s * stepDur;
-        if (track.drums.kick[s] === "x") {
-          music.push({ t, voice: "kick", g: 1.0 });
-          kickTimes.push(t);
-          music.push({ t, voice: "bass", freq: freq(root), dur: 0.18, g: 1.0 });
-        }
-        if (track.drums.snare[s] === "x") {
-          music.push({ t, voice: "snare", g: 0.9 });
-          snareTimes.push(t);
-        }
-        if (track.drums.hat[s] === "x") {
-          music.push({ t, voice: "hat", g: 0.8, open: false });
-        }
-      }
-    }
-    for (const nt of track.lead) {
-      const t = loopStart + nt.b * beatDur;
-      const dur = nt.d * beatDur * 0.95;
-      music.push({ t, voice: "lead", freq: freq(nt.n), dur, g: 1.0 });
-      leadOnsets.push({ time: t, freq: freq(nt.n), dBeats: nt.d });
-    }
-  }
+  const duration = track.sections
+    ? buildSectioned(track, ctx)
+    : buildLooped(track, ctx);
+
   music.sort((a, b) => a.t - b.t);
-  const duration = track.loops * loopDur;
 
   // ---- 谱面派生: 三档难度考不同能力 ----
   const holdMap = new Map(); // time(round) -> dur(秒), 长音变蓄力
@@ -124,11 +164,93 @@ export function compileTrack(track) {
   const hardTimes = dedupe([...kickTimes, ...snareTimes, ...leadOnsets.map((o) => o.time)]);
   const hard = buildEvents(hardTimes, holdMap, { beatDur, duration, traps: 1 });
 
+  // 隐藏道具方块: 炸弹(扣分)/加速(加分)/冰冻(暂停下落), 均匀点缀在中段
+  if (track.items) { sprinkleItems(easy, duration); sprinkleItems(normal, duration); sprinkleItems(hard, duration); }
+
   return {
     music, duration,
     charts: { easy, normal, hard },
     meta: { bpm: track.bpm, beatDur, scene: track.scene },
   };
+}
+
+// 段落编排: 逐段逐小节铺鼓/贝斯/pad/主旋律 => 返回总时长(秒)
+function buildSectioned(track, { music, kickTimes, snareTimes, leadOnsets, beatDur, stepDur }) {
+  let barCursor = 0;
+  for (const sec of track.sections) {
+    const secStart = barCursor * BEATS_PER_BAR * beatDur;
+    for (let bar = 0; bar < sec.bars; bar++) {
+      const barStart = (barCursor + bar) * BEATS_PER_BAR * beatDur;
+      const root = sec.chords[bar % sec.chords.length];
+      const rootFreq = freq(root);
+      for (let s = 0; s < STEPS_PER_BAR; s++) {
+        const t = barStart + s * stepDur;
+        if (sec.drums.kick[s] === "x") {
+          music.push({ t, voice: "kick", g: 1.0 });
+          kickTimes.push(t);
+          music.push({ t, voice: "bass", freq: rootFreq, dur: 0.2, g: 1.0 });
+        }
+        if (sec.drums.snare[s] === "x") { music.push({ t, voice: "snare", g: 0.9 }); snareTimes.push(t); }
+        if (sec.drums.hat[s] === "x") music.push({ t, voice: "hat", g: 0.8, open: false });
+      }
+      if (sec.pad !== false) {
+        // 开放和声: 高八度 root + 五度(2^{7/12}) + 八度, 持续整小节
+        const base = rootFreq * 2;
+        const padFreqs = [base, base * 1.498307, base * 2];
+        music.push({ t: barStart, voice: "pad", freqs: padFreqs, dur: BEATS_PER_BAR * beatDur * 0.98, g: sec.padGain ?? 1 });
+      }
+    }
+    if (sec.lead) for (const nt of sec.lead) {
+      const t = secStart + nt.b * beatDur;
+      const dur = nt.d * beatDur * 0.95;
+      music.push({ t, voice: "lead", freq: freq(nt.n), dur, g: sec.leadGain ?? 1 });
+      leadOnsets.push({ time: t, freq: freq(nt.n), dBeats: nt.d });
+    }
+    barCursor += sec.bars;
+  }
+  return barCursor * BEATS_PER_BAR * beatDur;
+}
+
+// 旧式单段落循环编排(jump/workshop 仍用) => 返回总时长(秒)
+function buildLooped(track, { music, kickTimes, snareTimes, leadOnsets, beatDur, stepDur }) {
+  const loopDur = track.bars * BEATS_PER_BAR * beatDur;
+  for (let L = 0; L < track.loops; L++) {
+    const loopStart = L * loopDur;
+    for (let bar = 0; bar < track.bars; bar++) {
+      const barStart = loopStart + bar * BEATS_PER_BAR * beatDur;
+      const root = track.chords[bar % track.chords.length];
+      for (let s = 0; s < STEPS_PER_BAR; s++) {
+        const t = barStart + s * stepDur;
+        if (track.drums.kick[s] === "x") {
+          music.push({ t, voice: "kick", g: 1.0 });
+          kickTimes.push(t);
+          music.push({ t, voice: "bass", freq: freq(root), dur: 0.18, g: 1.0 });
+        }
+        if (track.drums.snare[s] === "x") { music.push({ t, voice: "snare", g: 0.9 }); snareTimes.push(t); }
+        if (track.drums.hat[s] === "x") music.push({ t, voice: "hat", g: 0.8, open: false });
+      }
+    }
+    for (const nt of track.lead) {
+      const t = loopStart + nt.b * beatDur;
+      const dur = nt.d * beatDur * 0.95;
+      music.push({ t, voice: "lead", freq: freq(nt.n), dur, g: 1.0 });
+      leadOnsets.push({ time: t, freq: freq(nt.n), dBeats: nt.d });
+    }
+  }
+  return track.loops * loopDur;
+}
+
+// 在谱面中段点缀隐藏道具: 只标记 go 动作, 避开开头/结尾, 加权序列(加分多、炸弹少)
+// 导出供自选/花海等自动谱面复用
+export function sprinkleItems(events, duration) {
+  const lo = duration * 0.11, hi = duration * 0.93;
+  const seq = ["bonus", "freeze", "bonus", "bomb", "bonus", "freeze", "bomb", "bonus"];
+  let k = 0;
+  events.forEach((e, i) => {
+    if (e.action !== "go") return;
+    if (e.time < lo || e.time > hi) return;
+    if (i % 10 === 5) { e.item = seq[k % seq.length]; k++; }
+  });
 }
 
 // 由时间点集合构造动作事件; holdMap 命中则为 hold; traps>0 时在空档插入陷阱
