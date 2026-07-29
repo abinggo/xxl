@@ -1,122 +1,118 @@
-// 游戏主引擎: 串起 conductor / scorer / musicPlayer / 输入 / 渲染循环
+// 场景驱动引擎: 共享时钟/计分/舞台/特效/HUD/结算, 输入与判定下放给各 mode。
+// mode 契约(全部可选, 引擎按需调用):
+//   draw(world)            必需, 逐帧绘制"演员/玩法层"
+//   update(t, bands)       逐帧推进(自动流逝过期音符等)
+//   auto(t)                自动演示时命中(仅 ?auto=1)
+//   tap(x, y)              单键/单击动作(音符跳跃)
+//   laneTap(lane)          多轨动作(敲击工坊); mode.lanes 声明轨数
+//   pointer(type, x, y)    指针滑动(节奏切割), type: down/move/up
 import { getAudio } from "../audio/context.js";
 import { createConductor } from "./conductor.js";
-import { createScorer, judgeHit, WINDOWS } from "./judge.js";
+import { createScorer } from "./judge.js";
 import { playHitSfx } from "../audio/synth.js";
-import { createRenderer } from "../render/renderer.js";
-import { APPROACH } from "../render/config.js";
+import { createStage } from "../render/stage.js";
+import { createScene } from "../render/scenes/index.js";
+import { approachTime } from "../render/config.js";
 
-const LEAD_IN = 3.0; // 起手倒计时(秒)
+const LEAD_IN = 3.0;
+const LANE_KEYS = { d: 0, f: 1, j: 2, k: 3, D: 0, F: 1, J: 2, K: 3 };
+const TAP_KEYS = new Set([" ", "f", "j", "F", "J", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
-export function createGame(canvas, { song, player, notes, duration, onComplete }) {
+export function createGame(canvas, { song, player, events, duration, meta, onComplete }) {
   const { bands } = getAudio();
   const conductor = createConductor();
-  const scorer = createScorer(notes.length);
-  const renderer = createRenderer(canvas, song);
+  const stage = createStage(canvas, { song });
+  const approach = approachTime(meta.beatDur);
 
-  // 深拷贝音符 + 运行态
-  const chart = notes.map((n) => ({ ...n, _done: false }));
-  let firstActive = 0;
-  let raf = 0, finished = false;
-  let lastMilestone = 0;
-  let autoplay = false;
+  const chart = events.map((e) => ({ ...e, _done: false, _judge: null, _outcome: null, _rt: 0, lane: e.lane }));
+  const scorer = createScorer(chart.length);
+  let raf = 0, finished = false, lastMilestone = 0, autoplay = false;
 
+  // ---- 提供给 mode 的上下文 ----
+  const game = {
+    stage, meta, song, ip: song.ip, chart, approach, duration, conductor,
+    scorer, fx: stage.fx, sfx: playHitSfx,
+    get t() { return conductor.time(); },
+    inputTime: () => conductor.inputTime(),
+    // 计分 + 音效 + 连击里程碑
+    judge(j, opt = {}) {
+      const res = scorer.add(j);
+      if (!opt.silent) playHitSfx(j);
+      if (j !== "miss" && !opt.noMilestone) checkMilestone(res.combo);
+      return res;
+    },
+    breakCombo() { scorer.breakCombo(); },
+    flash: (c, a) => stage.flash(c, a),
+    shakeBy: (n) => stage.shakeBy(n),
+    celebrate,
+  };
+
+  const mode = createScene(meta.scene, stage, game);
+
+  function resize() { stage.resize(); }
   function setAutoplay(v) { autoplay = v; }
   function toggleAutoplay() { autoplay = !autoplay; return autoplay; }
 
-  function resize() { renderer.resize(); }
-
   function start() {
-    renderer.resize();
+    stage.resize();
     const startAt = conductor.now() + LEAD_IN;
     conductor.setStart(startAt);
     player.start(startAt);
     loop();
   }
 
-  function pressLane(lane) {
+  // ---- 输入分发 ----
+  function action(x, y) { if (!finished) mode.tap && mode.tap(x, y); }
+  function key(k) {
     if (finished) return;
-    const t = conductor.inputTime();
-    if (t < -0.2) return;
-    let best = -1, bestD = Infinity;
-    for (let i = firstActive; i < chart.length; i++) {
-      const n = chart[i];
-      if (n.time - t > WINDOWS.miss) break;
-      if (n._done || n.lane !== lane) continue;
-      const d = Math.abs(n.time - t);
-      if (d <= WINDOWS.miss && d < bestD) { bestD = d; best = i; }
-    }
-    if (best < 0) return;
-    const n = chart[best];
-    n._done = true;
-    const j = judgeHit(n.time, t) || "miss";
-    const res = scorer.add(j);
-    renderer.feedback(lane, j);
-    playHitSfx(j);
-    checkMilestone(res.combo);
+    if (mode.laneTap && k in LANE_KEYS) { mode.laneTap(LANE_KEYS[k]); return; }
+    if (TAP_KEYS.has(k)) mode.tap && mode.tap();
+  }
+  function pointer(type, x, y) {
+    if (finished) return;
+    if (mode.pointer) { mode.pointer(type, x, y); return; }
+    if (type === "down") mode.tap && mode.tap(x, y);
   }
 
   function checkMilestone(combo) {
-    if (combo > 0 && combo % 50 === 0 && combo !== lastMilestone) {
-      lastMilestone = combo;
-      renderer.celebrate();
-    }
+    if (combo > 0 && combo % 25 === 0 && combo !== lastMilestone) { lastMilestone = combo; celebrate(); }
   }
-
-  function autoMiss(t) {
-    while (firstActive < chart.length) {
-      const n = chart[firstActive];
-      if (n._done) { firstActive++; continue; }
-      if (n.time < t - WINDOWS.miss) {
-        n._done = true;
-        scorer.add("miss");
-        renderer.feedback(n.lane, "miss");
-        firstActive++;
-      } else break;
+  function celebrate() {
+    for (let i = 0; i < 8; i++) {
+      stage.fx.spawnBurst(stage.width * (0.15 + Math.random() * 0.7), stage.height * (0.2 + Math.random() * 0.35),
+        ["#ffd84d", "#22e1ff", "#ff3d9a", "#5be08a"][i % 4], 16, 1.6);
     }
+    stage.flash("#ffd84d", 0.14);
   }
 
   function loop() {
     const t = conductor.time();
     const b = bands();
 
-    // 自动演示: 到点精准命中
-    if (autoplay && t >= 0) {
-      for (let i = firstActive; i < chart.length; i++) {
-        const n = chart[i];
-        if (n._done) continue;
-        if (n.time > t) break;
-        n._done = true;
-        const res = scorer.add("perfect");
-        renderer.feedback(n.lane, "perfect");
-        playHitSfx("perfect");
-        checkMilestone(res.combo);
-      }
-    }
+    if (autoplay && t >= 0 && mode.auto) mode.auto(t);
+    if (t >= 0 && mode.update) mode.update(t, b);
 
-    if (t >= 0) autoMiss(t);
+    let countText = null, countAlpha = 1;
+    if (t < -0.05) { countText = String(Math.min(3, Math.ceil(-t))); countAlpha = 0.9; }
+    else if (t < 0.45) { countText = "GO!"; countAlpha = Math.max(0, 1 - t / 0.45); }
 
-    // 可见音符窗口
-    const visible = [];
-    for (let i = firstActive; i < chart.length; i++) {
-      const n = chart[i];
-      if (n._done) continue;
-      if (n.time - APPROACH > t) {
-        if (n.time - APPROACH > t + 0.05) break; // 后面的还没进场
-      }
-      if (n.time - APPROACH <= t && n.time + 0.1 >= t) visible.push(n);
-    }
+    const world = {
+      t, bands: b, scorer, bpm: meta.bpm, best: song.best || 0,
+      levelLabel: song.levelLabel, sceneName: song.sceneName,
+      duration, progress: duration ? t / duration : 0,
+      approach, W: stage.width, H: stage.height, ctx: canvas.getContext("2d"),
+      countText, countAlpha, floor: mode.floor !== false,
+    };
 
-    renderer.draw({
-      time: t, notes: visible, scorer, bands: b,
-      progress: duration ? t / duration : 0,
-      characterCelebrate: scorer.combo >= 50 ? Math.min(1, (scorer.combo - 50) / 100) : 0,
-      countdown: t < 0 ? Math.ceil(-t) : 0,
-    });
+    stage.begin(world);
+    mode.draw(world);
+    stage.fxLayer();
+    stage.hud(world);
+    stage.overlay(world);
 
-    if (!finished && t > duration + 1.2) {
+    if (!finished && t > duration + 1.6) {
       finished = true;
-      if (scorer.isFullCombo()) renderer.celebrate();
+      if (scorer.isFullCombo()) celebrate();
       cancelAnimationFrame(raf);
       onComplete({
         song, score: scorer.score, rank: scorer.rank(),
@@ -128,11 +124,7 @@ export function createGame(canvas, { song, player, notes, duration, onComplete }
     raf = requestAnimationFrame(loop);
   }
 
-  function destroy() {
-    finished = true;
-    cancelAnimationFrame(raf);
-    player.stop();
-  }
+  function destroy() { finished = true; cancelAnimationFrame(raf); player.stop(); }
 
-  return { start, pressLane, resize, destroy, setAutoplay, toggleAutoplay };
+  return { start, resize, destroy, setAutoplay, toggleAutoplay, action, key, pointer };
 }

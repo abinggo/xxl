@@ -2,9 +2,9 @@
 import { getIP } from "../data/ip.js";
 
 const DIFF = [
-  { key: "easy", name: "EASY", lv: "★☆☆" },
-  { key: "normal", name: "NORMAL", lv: "★★☆" },
-  { key: "hard", name: "HARD", lv: "★★★" },
+  { key: "easy", name: "EASY", lv: "★☆☆", tip: "跟拍 · 正拍稳踩" },
+  { key: "normal", name: "NORMAL", lv: "★★☆", tip: "卡点 · 切分与蓄力" },
+  { key: "hard", name: "HARD", lv: "★★★", tip: "炫技 · 有假动作陷阱" },
 ];
 
 export function renderSongSelect(root, { tracks, onPlay, onCustom }) {
@@ -31,6 +31,7 @@ export function renderSongSelect(root, { tracks, onPlay, onCustom }) {
       <div class="songcard__cover">${t.emoji}</div>
       <div class="songcard__info">
         <div class="songcard__name">${t.name}</div>
+        <div class="songcard__scene">🎮 ${t.sceneName} · ${t.verb}</div>
         <div class="songcard__meta">
           <span class="tag">${t.genre}</span>
           <span>${t.bpm} BPM</span>
@@ -69,6 +70,7 @@ function openDiff(root, title, choose) {
           <div class="diff-btn" data-d="${d.key}">
             <div class="diff-btn__name">${d.name}</div>
             <div class="diff-btn__lv">${d.lv}</div>
+            <div class="diff-btn__tip">${d.tip}</div>
           </div>`).join("")}
       </div>
     </div>`;

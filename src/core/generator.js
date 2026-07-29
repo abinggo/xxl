@@ -36,7 +36,6 @@ export function generateBeatmap(audioBuffer, difficulty = "normal") {
   const win = Math.max(4, Math.round((0.5 * sr) / HOP));
   const notes = [];
   let lastT = -Infinity;
-  let lane = 0;
   for (let f = 1; f < frames - 1; f++) {
     let avg = 0, cnt = 0;
     for (let k = f - win; k <= f + win; k++) { if (k >= 0 && k < frames) { avg += energy[k]; cnt++; } }
@@ -45,8 +44,7 @@ export function generateBeatmap(audioBuffer, difficulty = "normal") {
     if (isPeak && energy[f] > avg * sens && avg > 1e-6) {
       const t = (f * HOP) / sr;
       if (t - lastT >= minGap) {
-        notes.push({ time: Math.round(t * 1000) / 1000, type: "tap", lane });
-        lane ^= 1;
+        notes.push({ time: Math.round(t * 1000) / 1000, action: "go" });
         lastT = t;
       }
     }
@@ -55,8 +53,15 @@ export function generateBeatmap(audioBuffer, difficulty = "normal") {
   if (notes.length < 8) {
     const step = 0.6;
     for (let t = 1; t < audioBuffer.duration - 1; t += step) {
-      notes.push({ time: Math.round(t * 1000) / 1000, type: "tap", lane });
-      lane ^= 1;
+      notes.push({ time: Math.round(t * 1000) / 1000, action: "go" });
+    }
+    notes.sort((a, b) => a.time - b.time);
+  }
+  // HARD 追加少量陷阱假动作
+  if (difficulty === "hard" && notes.length > 12) {
+    for (let i = 6; i < notes.length - 2; i += 7) {
+      const mid = (notes[i].time + notes[i + 1].time) / 2;
+      if (notes[i + 1].time - notes[i].time > 0.5) notes.push({ time: Math.round(mid * 1000) / 1000, action: "trap" });
     }
     notes.sort((a, b) => a.time - b.time);
   }

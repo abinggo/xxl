@@ -1,18 +1,18 @@
-// 内置原创曲目 + 谱面编译器
+// 内置原创曲目 + 场景化谱面编译器
 // 曲目以"步进网格"定义(每小节16个16分音符); 音乐床与谱面从同一网格派生 => 卡点100%对齐
+// 谱面不再是抽象音符, 而是"动作事件": go(点击) / hold(蓄力) / trap(假动作,别按)
 import { freq } from "./notes.js";
 
 const STEPS_PER_BAR = 16;
 const BEATS_PER_BAR = 4;
 
 // ---- 曲目定义 ----
-// drums: 每小节循环的 16 位模式("x"=击, "."=空); chords: 每小节根音(循环)
-// lead: 一个乐句(loop)内的旋律 [{b:起始拍, n:音名, d:时值拍}]
 export const TRACKS = [
   {
-    id: "neon", name: "霓虹脉冲", artist: "TME Synth", ip: "penguin",
-    emoji: "🐧", colorA: "#22e1ff", colorB: "#9a6bff",
-    genre: "Future Bass", bpm: 128, bars: 4, loops: 3,
+    id: "jump", name: "音符跳跃", artist: "全民K歌", ip: "redbird",
+    emoji: "🐦", colorA: "#ff5c5c", colorB: "#ffd84d",
+    genre: "Future Bass", bpm: 120, bars: 4, loops: 3,
+    scene: "jump", sceneName: "单键上跳", verb: "点击卡拍, 沿霓虹音符盘往上跳",
     drums: {
       kick:  "x...x...x...x...",
       snare: "....x.......x...",
@@ -27,26 +27,10 @@ export const TRACKS = [
     ],
   },
   {
-    id: "midnight", name: "午夜留声", artist: "TME Synth", ip: "redbird",
-    emoji: "🎙️", colorA: "#ff8a5c", colorB: "#ff3d9a",
-    genre: "City Pop", bpm: 94, bars: 4, loops: 3,
-    drums: {
-      kick:  "x.......x.......",
-      snare: "....x.......x...",
-      hat:   "x.x.x.x.x.x.x.x.",
-    },
-    chords: ["D2", "A2", "B2", "F#2"],
-    lead: [
-      { b: 0, n: "F#4", d: 1 }, { b: 1, n: "A4", d: 1 }, { b: 2, n: "B4", d: 1.5 }, { b: 3.5, n: "A4", d: 0.5 },
-      { b: 4, n: "C#5", d: 1 }, { b: 5, n: "B4", d: 1 }, { b: 6, n: "A4", d: 2 },
-      { b: 8, n: "E5", d: 1 }, { b: 9, n: "C#5", d: 1 }, { b: 10, n: "B4", d: 1.5 }, { b: 11.5, n: "A4", d: 0.5 },
-      { b: 12, n: "F#4", d: 1 }, { b: 13, n: "A4", d: 1 }, { b: 14, n: "F#4", d: 2 },
-    ],
-  },
-  {
-    id: "cyber", name: "赛博狂潮", artist: "TME Synth", ip: "bluedog",
-    emoji: "🐶", colorA: "#4dff9e", colorB: "#22e1ff",
+    id: "workshop", name: "敲击工坊", artist: "酷狗音乐", ip: "bluedog",
+    emoji: "🐶", colorA: "#3d9aff", colorB: "#4dff9e",
     genre: "Hard EDM", bpm: 150, bars: 4, loops: 3,
+    scene: "workshop", sceneName: "多轨敲钉", verb: "钉子落到判定线, 按对应键一锤夯平",
     drums: {
       kick:  "x..x..x.x..x..x.",
       snare: "....x.......x...",
@@ -60,9 +44,27 @@ export const TRACKS = [
       { b: 12, n: "B5", d: 0.5 }, { b: 12.5, n: "A5", d: 0.5 }, { b: 13, n: "G5", d: 0.5 }, { b: 13.5, n: "E5", d: 0.5 }, { b: 14, n: "D5", d: 1 }, { b: 15, n: "E5", d: 1 },
     ],
   },
+  {
+    id: "cut", name: "节拍切击", artist: "QQ音乐", ip: "penguin",
+    emoji: "🐧", colorA: "#2fd0ff", colorB: "#9a6bff",
+    genre: "City Pop", bpm: 94, bars: 4, loops: 3,
+    scene: "cut", sceneName: "全屏切击", verb: "音符抛物线飞出, 滑动屏幕划过即可切开",
+    drums: {
+      kick:  "x.......x.......",
+      snare: "....x.......x...",
+      hat:   "x.x.x.x.x.x.x.x.",
+    },
+    chords: ["D2", "A2", "B2", "F#2"],
+    lead: [
+      { b: 0, n: "F#4", d: 1 }, { b: 1, n: "A4", d: 1 }, { b: 2, n: "B4", d: 1.5 }, { b: 3.5, n: "A4", d: 0.5 },
+      { b: 4, n: "C#5", d: 1 }, { b: 5, n: "B4", d: 1 }, { b: 6, n: "A4", d: 2 },
+      { b: 8, n: "E5", d: 1 }, { b: 9, n: "C#5", d: 1 }, { b: 10, n: "B4", d: 1.5 }, { b: 11.5, n: "A4", d: 0.5 },
+      { b: 12, n: "F#4", d: 1 }, { b: 13, n: "A4", d: 1 }, { b: 14, n: "F#4", d: 2 },
+    ],
+  },
 ];
 
-// ---- 编译: track -> { music事件, beatmaps, duration } ----
+// ---- 编译: track -> { music事件, charts(三档 events), duration } ----
 export function compileTrack(track) {
   const beatDur = 60 / track.bpm;
   const stepDur = beatDur / 4;
@@ -70,13 +72,12 @@ export function compileTrack(track) {
   const loopDur = loopBeats * beatDur;
 
   const music = [];
-  const kickTimes = [];   // 每次 kick 的绝对时间
+  const kickTimes = [];
   const snareTimes = [];
-  const leadOnsets = [];  // {time, freq, dBeats}
+  const leadOnsets = []; // {time, freq, dBeats}
 
   for (let L = 0; L < track.loops; L++) {
     const loopStart = L * loopDur;
-    // 鼓 + 贝斯(逐小节循环鼓型)
     for (let bar = 0; bar < track.bars; bar++) {
       const barStart = loopStart + bar * BEATS_PER_BAR * beatDur;
       const root = track.chords[bar % track.chords.length];
@@ -96,7 +97,6 @@ export function compileTrack(track) {
         }
       }
     }
-    // 旋律(逐 loop)
     for (const nt of track.lead) {
       const t = loopStart + nt.b * beatDur;
       const dur = nt.d * beatDur * 0.95;
@@ -105,64 +105,64 @@ export function compileTrack(track) {
     }
   }
   music.sort((a, b) => a.t - b.t);
-
   const duration = track.loops * loopDur;
 
-  // ---- 谱面派生 ----
-  // easy: 只取每拍上的 kick(下拍), 稀疏
-  // normal: 全部 kick + snare 骨架
-  // hard: kick/snare + 旋律音, 更密更切分, 长音变 Hold
-  const easy = buildMap(dedupe(kickTimes.filter((t) => isOnBeat(t, beatDur))), null, beatDur);
-  const normal = buildMap(dedupe([...kickTimes, ...snareTimes]), null, beatDur);
-  const hard = buildMap(
-    dedupe([...kickTimes, ...snareTimes, ...leadOnsets.map((o) => o.time)]),
-    leadOnsets, beatDur
-  );
+  // ---- 谱面派生: 三档难度考不同能力 ----
+  const holdMap = new Map(); // time(round) -> dur(秒), 长音变蓄力
+  for (const o of leadOnsets) if (o.dBeats >= 1.5) holdMap.set(round(o.time), o.dBeats * beatDur * 0.9);
+
+  // EASY 跟拍: 每个正拍一个 go, 稳定, 无陷阱
+  const beats = [];
+  for (let t = 0; t < duration - 0.05; t += beatDur) beats.push(round(t));
+  const easy = buildEvents(beats, null, { beatDur, duration, traps: 0 });
+
+  // NORMAL 卡点: kick+snare 骨架(含切分与休止) + 少量 hold
+  const normalTimes = dedupe([...kickTimes, ...snareTimes, ...holdMap.keys()]);
+  const normal = buildEvents(normalTimes, holdMap, { beatDur, duration, traps: 0 });
+
+  // HARD 炫技: kick+snare+旋律 密集切分 + hold + 陷阱假动作
+  const hardTimes = dedupe([...kickTimes, ...snareTimes, ...leadOnsets.map((o) => o.time)]);
+  const hard = buildEvents(hardTimes, holdMap, { beatDur, duration, traps: 1 });
 
   return {
     music, duration,
-    beatmaps: { easy, normal, hard },
-    meta: { bpm: track.bpm, beatDur },
+    charts: { easy, normal, hard },
+    meta: { bpm: track.bpm, beatDur, scene: track.scene },
   };
 }
 
-function isOnBeat(t, beatDur) {
-  const r = (t / beatDur) % 1;
-  return r < 0.02 || r > 0.98;
-}
+// 由时间点集合构造动作事件; holdMap 命中则为 hold; traps>0 时在空档插入陷阱
+function buildEvents(times, holdMap, { beatDur, duration, traps }) {
+  const evs = times
+    .filter((t) => t >= beatDur * 0.5 && t <= duration - beatDur * 0.5)
+    .map((t) => {
+      const h = holdMap && holdMap.get(round(t));
+      return h ? { time: round(t), action: "hold", dur: h } : { time: round(t), action: "go" };
+    });
 
-function dedupe(times) {
-  const s = [...times].sort((a, b) => a - b);
-  const out = [];
-  for (const t of s) {
-    if (!out.length || t - out[out.length - 1] > 0.06) out.push(t);
-  }
-  return out;
-}
-
-// 由时间点构造音符; lane 交替, 若提供 leadOnsets 则按音高走向分配 lane + 长音转 Hold
-function buildMap(times, leadOnsets, beatDur) {
-  const notes = [];
-  let lane = 0;
-  const leadByTime = new Map();
-  if (leadOnsets) for (const o of leadOnsets) leadByTime.set(round(o.time), o);
-
-  let prevFreq = null;
-  for (const t of times) {
-    const lo = leadByTime.get(round(t));
-    let type = "tap", dur;
-    if (lo) {
-      // 按音高走向决定 lane: 升高->右(1), 降低->左(0)
-      if (prevFreq != null) lane = lo.freq >= prevFreq ? 1 : 0;
-      prevFreq = lo.freq;
-      if (lo.dBeats >= 1.5) { type = "hold"; dur = lo.dBeats * beatDur * 0.9; }
-    } else {
-      lane = lane ^ 1; // 交替
+  if (traps > 0) {
+    const occ = evs.map((e) => e.time);
+    const free = (tt) => !occ.some((o) => Math.abs(o - tt) < beatDur * 0.45);
+    // 从后半段起, 每约 2 拍尝试在 offbeat 放一个陷阱, 控制密度
+    let toggle = 0;
+    for (let t = duration * 0.35; t < duration - beatDur; t += beatDur * 2) {
+      const tt = round(t + beatDur * 0.5); // offbeat 更迷惑
+      if (free(tt)) {
+        if (toggle % 2 === 0) { evs.push({ time: tt, action: "trap" }); occ.push(tt); }
+        toggle++;
+      }
     }
-    notes.push(dur != null ? { time: round(t), type, dur, lane } : { time: round(t), type, lane });
   }
-  notes.sort((a, b) => a.time - b.time);
-  return notes;
+
+  evs.sort((a, b) => a.time - b.time);
+  return evs;
+}
+
+function dedupe(iterable) {
+  const s = [...iterable].map(round).sort((a, b) => a - b);
+  const out = [];
+  for (const t of s) if (!out.length || t - out[out.length - 1] > 0.06) out.push(t);
+  return out;
 }
 
 function round(x) { return Math.round(x * 1000) / 1000; }

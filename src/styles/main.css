@@ -189,6 +189,14 @@ body {
 .diff-btn[data-d="hard"]:hover { border-color: var(--magenta); box-shadow: 0 0 24px rgba(255,61,154,0.35); }
 .diff-btn__name { font-size: 17px; font-weight: 800; }
 .diff-btn__lv { font-size: 11px; color: var(--text-dim); margin-top: 6px; letter-spacing: 1px; }
+.diff-btn__tip { font-size: 10.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.3; opacity: 0.85; }
+
+/* 选曲卡片 · 玩法行 */
+.songcard__scene {
+  position: relative; z-index: 1; font-size: 11.5px; margin-top: 5px;
+  color: var(--text); opacity: 0.9; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* ---- 通用按钮 ---- */
 .btn {
@@ -238,6 +246,126 @@ body {
 .result__actions { display: flex; gap: 12px; }
 .newbest { margin-top: 10px; font-size: 12px; font-weight: 800; color: var(--gold); letter-spacing: 1px; animation: blink 1s ease infinite; }
 @keyframes blink { 50% { opacity: 0.4; } }
+
+/* ============================ 标题页(单入口) ============================ */
+.home { justify-content: space-between; padding: 64px 24px 30px; }
+.home__top { text-align: center; }
+.home__mascots {
+  display: flex; justify-content: center; gap: 6px; font-size: 40px; margin: 10px 0;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
+  animation: floaty 3.5s ease-in-out infinite;
+}
+.home__mascots span { animation: bobbing 2.2s ease-in-out infinite; }
+.home__mascots span:nth-child(2) { animation-delay: 0.4s; }
+.home__mascots span:nth-child(3) { animation-delay: 0.8s; }
+@keyframes bobbing { 50% { transform: translateY(-8px); } }
+@keyframes floaty { 50% { transform: translateY(-4px); } }
+.home__center { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.btn--start {
+  font-size: 20px; padding: 18px 48px; letter-spacing: 2px;
+  background: linear-gradient(100deg, var(--cyan), var(--violet) 55%, var(--magenta));
+  box-shadow: 0 10px 34px rgba(154,107,255,0.55), 0 0 0 rgba(255,61,154,0.5);
+  animation: startPulse 1.8s ease-in-out infinite;
+}
+@keyframes startPulse {
+  0%, 100% { transform: translateY(0); box-shadow: 0 10px 34px rgba(154,107,255,0.55); }
+  50% { transform: translateY(-3px); box-shadow: 0 16px 44px rgba(255,61,154,0.6); }
+}
+.home__stars { font-size: 14px; font-weight: 800; color: var(--gold); letter-spacing: 1px; }
+.home__custom { font-size: 13px; padding: 10px 18px; }
+.home__foot { text-align: center; font-size: 11.5px; color: var(--text-dim); letter-spacing: 0.4px; }
+
+/* ---- 封面式首页(直接用设计稿 + 透明热区) ---- */
+.home--cover { padding: 0; justify-content: center; align-items: center; overflow: hidden; }
+.cover { position: relative; width: 100%; line-height: 0; }
+.cover__img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.hot {
+  position: absolute; border: 0; background: transparent; cursor: pointer; padding: 0;
+  border-radius: 16px; -webkit-tap-highlight-color: transparent;
+  transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
+}
+.hot:focus { outline: none; }
+.hot:hover {
+  background: rgba(255,255,255,0.07);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.45), 0 0 26px rgba(154,107,255,0.55);
+}
+.hot:active { transform: scale(0.97); }
+/* 三张玩法卡 */
+.hot--card1 { left: 3.0%;  top: 50.5%; width: 29.2%; height: 24%; }
+.hot--card2 { left: 35.3%; top: 50.5%; width: 29.2%; height: 24%; }
+.hot--card3 { left: 67.6%; top: 50.5%; width: 29.3%; height: 24%; }
+/* 开始派对 / 自选歌曲 */
+.hot--start  { left: 17%; top: 76%;   width: 66%; height: 7.3%; border-radius: 44px; }
+.hot--custom { left: 25%; top: 84%;   width: 50%; height: 4.3%; border-radius: 30px; }
+/* 单游戏封面: 开始开拍 / 底部自选歌曲 */
+.hot--play { left: 17%; top: 79%; width: 66%; height: 10%; border-radius: 60px; }
+.hot--pick { left: 22%; top: 92.2%; width: 56%; height: 4.2%; border-radius: 30px; }
+/* 开始按钮呼吸提示光环, 让人知道可点 */
+.hot--play::after,
+.hot--start::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(255,61,154,0.0);
+  animation: hotPulse 1.9s ease-in-out infinite; pointer-events: none;
+}
+@keyframes hotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,61,154,0.0); }
+  50% { box-shadow: 0 0 26px 3px rgba(255,61,154,0.45); }
+}
+
+/* ============================ 关卡地图 ============================ */
+.map { padding: 50px 18px 20px; }
+.map__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.map__title { font-size: 19px; font-weight: 900; letter-spacing: 1px; }
+.iconbtn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--stroke);
+  background: var(--panel); color: var(--text); font-size: 22px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding-bottom: 3px;
+}
+.iconbtn:hover { border-color: var(--cyan); }
+.worlds { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; flex: 1; padding-right: 2px; }
+.worlds::-webkit-scrollbar { width: 4px; }
+.worlds::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
+
+.world {
+  position: relative; border-radius: 22px; padding: 16px; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--stroke);
+}
+.world::before {
+  content: ""; position: absolute; inset: 0; opacity: 0.55; pointer-events: none;
+  background: linear-gradient(125deg, var(--wa, #22e1ff33), transparent 60%);
+}
+.world__head { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.world__badge {
+  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0; font-size: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(140deg, var(--wa, #22e1ff), var(--wb, #9a6bff));
+  box-shadow: 0 5px 16px rgba(0,0,0,0.4);
+}
+.world__meta { flex: 1; min-width: 0; }
+.world__name { font-size: 15px; font-weight: 700; }
+.world__name b { font-weight: 900; }
+.world__scene {
+  font-size: 11.5px; color: var(--text-dim); margin-top: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.world__ip { font-size: 11px; color: var(--text-dim); text-align: right; }
+
+.nodes { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 0; }
+.node {
+  flex: 1; border-radius: 14px; padding: 12px 4px 10px; text-align: center; cursor: pointer;
+  border: 1px solid var(--stroke); background: rgba(255,255,255,0.05);
+  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+.node:hover { transform: translateY(-3px); border-color: var(--wa, var(--cyan));
+  box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 22px var(--wa, rgba(34,225,255,0.35)); }
+.node--lock { cursor: not-allowed; opacity: 0.5; filter: grayscale(0.6); }
+.node--lock:hover { transform: none; border-color: var(--stroke); box-shadow: none; }
+.node__label { font-size: 17px; font-weight: 900; letter-spacing: 0.5px; }
+.node__diff { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.node__stars { font-size: 13px; margin-top: 6px; height: 16px; }
+.stars { letter-spacing: 1px; color: rgba(255,255,255,0.25); }
+.stars--1, .stars--2, .stars--3 { color: var(--gold); text-shadow: 0 0 8px rgba(255,216,77,0.5); }
+.node-link { width: 14px; flex-shrink: 0; align-self: center; height: 2px; background: var(--stroke); }
 
 /* 载入遮罩 */
 .loading { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: var(--bg-1); }

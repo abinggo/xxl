@@ -1,6 +1,6 @@
 // 判定逻辑 — 纯函数, 便于单测
 // 判定窗口(秒), 见设计文档
-export const WINDOWS = { perfect: 0.045, good: 0.09, miss: 0.14 };
+export const WINDOWS = { perfect: 0.065, good: 0.13, miss: 0.17 };
 
 export const SCORE = { perfect: 100, good: 50, miss: 0 };
 
@@ -45,8 +45,11 @@ export function createScorer(totalNotes) {
     return "C";
   }
 
+  // 空挥/抢拍: 只断连击, 不计入音符统计
+  function breakCombo() { combo = 0; }
+
   return {
-    add,
+    add, breakCombo,
     get score() { return Math.round(score); },
     get combo() { return combo; },
     get maxCombo() { return maxCombo; },

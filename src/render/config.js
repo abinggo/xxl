@@ -1,14 +1,22 @@
-// 渲染/玩法共享常量
-export const APPROACH = 0.72;      // 音符提前出现时间(秒), 节拍环收缩时长
-export const LANE_X = [0.30, 0.70]; // 左/右 lane 中心(相对宽度)
-export const JUDGE_Y = 0.80;        // 判定线(相对高度)
-export const TARGET_R = 34;         // 判定圈半径
-export const RING_EXTRA = 120;      // 节拍环起始额外半径
+// 场景化玩法/渲染 共享常量
 export const COLORS = {
   perfect: "#ffd84d",
   good: "#22e1ff",
-  miss: "#ff3d9a",
-  laneA: "#22e1ff",
-  laneB: "#ff3d9a",
+  miss: "#ff5b8a",
+  trap: "#ff4d4d",
   text: "#f3f0ff",
+  cyan: "#22e1ff",
+  magenta: "#ff3d9a",
+  gold: "#ffd84d",
+  violet: "#9a6bff",
+  ink: "#20143a",
 };
+
+// 物体从进场到抵达"动作点"的时长(秒)由 beatDur 推导, 这里给夹取范围
+export const APPROACH_MIN = 0.62;
+export const APPROACH_MAX = 1.15;
+export const APPROACH_BEATS = 2; // 提前 2 拍进场
+
+export function approachTime(beatDur) {
+  return Math.max(APPROACH_MIN, Math.min(APPROACH_MAX, beatDur * APPROACH_BEATS));
+}
