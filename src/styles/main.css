@@ -342,6 +342,8 @@ body {
   position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
   background: rgba(6,4,16,0.66); backdrop-filter: blur(6px); animation: sheetFade .18s ease;
 }
+/* 关键: hidden 属性必须真正隐藏, 否则上面的 display:flex 会把它顶出来一直显示 */
+.sheet[hidden] { display: none !important; }
 @keyframes sheetFade { from { opacity: 0; } to { opacity: 1; } }
 .sheet__panel {
   width: min(84%, 340px); border-radius: 20px; padding: 20px 18px 16px;

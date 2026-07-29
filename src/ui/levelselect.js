@@ -1,5 +1,5 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785334738";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
@@ -65,6 +65,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f); } });
 
   paintSongBtn();
+  paintList();                    // 预填充列表, 弹层任何时候显示都不会是空的
   root.appendChild(el);
   startCoverAnim(el.querySelector("#coverFx"));
 }

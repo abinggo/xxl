@@ -1,14 +1,14 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js";
-import { getIP, loadIPSprites } from "./data/ip.js";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js";
-import { createGame } from "./core/engine.js";
-import { renderHome } from "./ui/levelselect.js";
-import { renderResult } from "./ui/result.js";
-import { generateBeatmap } from "./core/generator.js";
-import { createMusicPlayer } from "./audio/synth.js";
-import { createBufferPlayer } from "./audio/decoded.js";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785334738";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785334738";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785334738";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785334738";
+import { createGame } from "./core/engine.js?v=1785334738";
+import { renderHome } from "./ui/levelselect.js?v=1785334738";
+import { renderResult } from "./ui/result.js?v=1785334738";
+import { generateBeatmap } from "./core/generator.js?v=1785334738";
+import { createMusicPlayer } from "./audio/synth.js?v=1785334738";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785334738";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 
