@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0616" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
+  <title>TME 节奏派对</title>
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+  <!-- 页面背景（手机外壳外的氛围） -->
+  <div class="stage-backdrop"></div>
+
+  <!-- 手机模拟器外壳 -->
+  <div class="phone" id="phone">
+    <div class="phone__notch">
+      <span class="phone__camera"></span>
+    </div>
+    <div class="phone__statusbar">
+      <span class="statusbar__time" id="statusTime">21:00</span>
+      <span class="statusbar__icons">
+        <span class="sb-sig"></span>
+        <span class="sb-wifi"></span>
+        <span class="sb-bat"></span>
+      </span>
+    </div>
+
+    <!-- 应用视口：所有屏幕在此切换 -->
+    <div class="viewport" id="viewport">
+      <!-- 游戏 Canvas（游玩时显示） -->
+      <canvas id="gameCanvas" class="game-canvas hidden"></canvas>
+      <!-- DOM 屏幕层（选曲/结算等）由 JS 注入 -->
+      <div class="screens" id="screens"></div>
+    </div>
+
+    <div class="phone__homebar"></div>
+  </div>
+
+  <p class="hint">← 手机模拟器 · 用键盘 <kbd>F</kbd>/<kbd>J</kbd> 或点击左右两侧游玩 →</p>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
