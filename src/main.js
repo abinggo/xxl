@@ -1,14 +1,14 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js?v=1785337429";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785337429";
-import { getIP, loadIPSprites } from "./data/ip.js?v=1785337429";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785337429";
-import { createGame } from "./core/engine.js?v=1785337429";
-import { renderHome } from "./ui/levelselect.js?v=1785337429";
-import { renderResult } from "./ui/result.js?v=1785337429";
-import { generateBeatmap } from "./core/generator.js?v=1785337429";
-import { createMusicPlayer } from "./audio/synth.js?v=1785337429";
-import { createBufferPlayer } from "./audio/decoded.js?v=1785337429";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785338504";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785338504";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785338504";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785338504";
+import { createGame } from "./core/engine.js?v=1785338504";
+import { renderHome } from "./ui/levelselect.js?v=1785338504";
+import { renderResult } from "./ui/result.js?v=1785338504";
+import { generateBeatmap } from "./core/generator.js?v=1785338504";
+import { createMusicPlayer } from "./audio/synth.js?v=1785338504";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785338504";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 
@@ -17,23 +17,24 @@ const screens = document.getElementById("screens");
 let game = null;
 let inputBound = false;
 let currentSong = null;                 // 当前选中的曲目(用于"再来一次"重开同一首)
-let currentTheme = "neon";              // 当前皮肤(和歌曲解绑, 右上角切; 用于"再来一次"沿用)
+let currentTheme = "sunset";            // 当前皮肤(跟随所选歌曲; 用于"再来一次"沿用)
 
 // ---------- 曲库: 就两首歌, 每首自带主题(选哪首 => 进哪首对应的界面) ----------
 const SONGS = [
-  { id: "neon", name: "霓虹夜航", genre: "City Pop", kind: "synth", theme: "neon" },
+  { id: "riluo", name: "日落大道", genre: "Sunset Drive", kind: "mp3",
+    url: "./assets/audio/riluodadao.mp3", theme: "sunset" },
   { id: "huahai", name: "花海主题", genre: "Sakura Pop", kind: "mp3",
     url: "./assets/audio/huahai.mp3", theme: "flower" },
 ];
 
 // ---------- 主题皮肤(视觉/配色/切割物, 由歌曲自带的 theme 决定) ----------
 const THEMES = {
-  neon:   { colorA: "#7b3cff", colorB: "#22e1ff", emoji: "💎", scene: "切水晶" },
+  sunset: { colorA: "#ff9a3c", colorB: "#ffd24d", emoji: "🌅", scene: "切音符" },
   flower: { colorA: "#ff6fb5", colorB: "#c86bff", emoji: "🌸", scene: "切花" },
 };
 // 把主题皮肤套到 song 元数据上(只改配色/场景名/图标等表现层, 不动音频与谱面)
 function applyTheme(song, theme) {
-  const th = THEMES[theme] || THEMES.neon;
+  const th = THEMES[theme] || THEMES.sunset;
   return {
     ...song,
     ip: { ...(song.ip || {}), color: th.colorA, accent: th.colorB },
@@ -74,7 +75,7 @@ function goHome() {
 // 选定歌曲进场: 歌管音乐/谱面, 皮肤(theme)由右上角单独选, 两者解绑
 function playSelected(song, theme) {
   currentSong = song;
-  currentTheme = theme || song.theme || "neon";
+  currentTheme = theme || song.theme || "sunset";
   if (song.kind === "synth") startSynthSong(currentTheme);
   else if (song._buf) launchBuffer(song._buf, song, currentTheme);   // 已解码(自选/重开): 直接复用
   else startMp3Song(song, currentTheme);
@@ -109,7 +110,7 @@ async function startMp3Song(s, theme) {
 }
 
 // ---------- 自选本地音乐(皮肤沿用右上角所选) ----------
-async function startCustom(file, theme = "neon") {
+async function startCustom(file, theme = "sunset") {
   loading("分析音乐、自动生成谱面…");
   await unlockAudio();
   const { ctx } = getAudio();

@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785337429";
-import { hexA } from "../stage.js?v=1785337429";
-import { clamp, lerp } from "./base.js?v=1785337429";
+import { COLORS } from "../config.js?v=1785338504";
+import { hexA } from "../stage.js?v=1785338504";
+import { clamp, lerp } from "./base.js?v=1785338504";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -20,23 +20,32 @@ const F_PINK = "#ff5fae", F_ROSE = "#ff9ad0", F_MAG = "#c86bff", F_GOLD = "#ffd2
 const F_PALETTE = [F_PINK, F_ROSE, F_MAG, "#ff77c2", F_GOLD];
 const SPIKE = "#7a2fd6";                            // 带刺障碍(花海里替代炸弹)
 
+// 日落大道主题(切音符)暖色盘: 金/橙/琥珀/落日红
+const S_GOLD = "#ffd24d", S_ORANGE = "#ff9a3c", S_AMBER = "#ffb347", S_RED = "#ff5e3a";
+const S_PALETTE = [S_GOLD, S_ORANGE, S_AMBER, "#ffcf5c", S_RED];
+
 // 企鹅吉祥物贴图(抠图立绘), 加载完成前回退为发光徽章
 let PENG = null;
 { const im = new Image(); im.onload = () => { PENG = im; }; im.src = "./assets/ip/penguin_hero.png"; }
 // 花海舞台底图(切花场景背景), 加载完成前回退为粉色渐变
 let FLORAL = null;
 { const im = new Image(); im.onload = () => { FLORAL = im; }; im.src = "./assets/bg/huahai_stage.png"; }
+// 日落大道舞台底图(落日公路), 加载完成前回退为暖色渐变
+let SUNSET = null;
+{ const im = new Image(); im.onload = () => { SUNSET = im; }; im.src = "./assets/bg/riluo_stage.png"; }
 
 export function createCut(stage, game) {
   const { geom } = stage;
   const chart = game.chart;
   const RISE = Math.max(1.3, game.approach * 1.9);   // 更长滞空 => 同时更多音符在空中
 
-  // ---- 主题: neon(切水晶) / flower(切花) ----
-  const flower = (game.meta && game.meta.theme) === "flower";
-  const PAL = flower ? F_PALETTE : PALETTE;           // 音符/碎屑取色盘
-  const ACCENT = flower ? F_MAG : PURPLE;             // 企鹅光环主色
-  const COOL = flower ? F_MAG : CYAN;                 // 刀光/高光冷色
+  // ---- 主题: sunset(切音符) / flower(切花) / neon(切水晶, 已下线保留兜底) ----
+  const theme = (game.meta && game.meta.theme) || "sunset";
+  const flower = theme === "flower";
+  const sunset = theme === "sunset";
+  const PAL = flower ? F_PALETTE : sunset ? S_PALETTE : PALETTE;   // 音符/碎屑取色盘
+  const ACCENT = flower ? F_MAG : sunset ? S_ORANGE : PURPLE;      // 企鹅光环主色
+  const COOL = flower ? F_MAG : sunset ? S_GOLD : CYAN;            // 刀光/高光冷色
 
   const trail = [];
   let prevPt = null, autoPt = null;
@@ -342,7 +351,7 @@ export function createCut(stage, game) {
     drawBackground(c, t, bands, fv);
     drawPenguin(c, t, bands, fv);
     drawSwirl(c, t, fv);
-    if (!flower) drawBadges(c, t, fv);
+    if (!flower && !sunset) drawBadges(c, t, fv);
     drawDecor(c, t);
 
     const ntNow = t - freezeOff;
@@ -395,6 +404,7 @@ export function createCut(stage, game) {
   // ===== 背景: 霓虹 Live 舞台 / 花海樱花舞台 =====
   function drawBackground(c, t, bands, fv) {
     if (flower) { drawFlowerBg(c, t, bands, fv); return; }
+    if (sunset) { drawSunsetBg(c, t, bands, fv); return; }
     const energy = bands.energy || 0, bass = bands.bass || 0;
     const cx = geom.W / 2;
 
@@ -495,6 +505,49 @@ export function createCut(stage, game) {
     c.restore();
   }
 
+  // ===== 背景: 日落大道(落日公路底图 + 落日脉冲 + 暖色舞池光环) =====
+  function drawSunsetBg(c, t, bands, fv) {
+    const bass = bands.bass || 0;
+    // 舞台底图: 落日公路填满(cover-fit)
+    if (SUNSET && SUNSET.width) {
+      const scale = Math.max(geom.W / SUNSET.width, geom.H / SUNSET.height);
+      const w = SUNSET.width * scale, h = SUNSET.height * scale;
+      c.drawImage(SUNSET, (geom.W - w) / 2, (geom.H - h) / 2, w, h);
+    } else {
+      const g = c.createLinearGradient(0, 0, 0, geom.H);
+      g.addColorStop(0, "#3a2a6a"); g.addColorStop(0.5, "#ff8a4c"); g.addColorStop(1, "#ffd24d");
+      c.fillStyle = g; c.fillRect(0, 0, geom.W, geom.H);
+    }
+    // 地平线落日脉冲光晕(随低频呼吸)
+    c.save(); c.globalCompositeOperation = "lighter";
+    const sy = geom.H * 0.42, sr = geom.W * (0.5 + bass * 0.28);
+    const sun = c.createRadialGradient(geom.W / 2, sy, 8, geom.W / 2, sy, sr);
+    sun.addColorStop(0, hexA(fv ? GOLD : "#fff0c0", 0.30 + bass * 0.2));
+    sun.addColorStop(0.5, hexA(S_ORANGE, 0.10));
+    sun.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = sun; c.fillRect(0, 0, geom.W, geom.H);
+    c.restore();
+    // 轻压暗上半玩区: 让金色音符更清晰(不破坏落日暖调)
+    const dk = c.createLinearGradient(0, 0, 0, geom.H * 0.66);
+    dk.addColorStop(0, "rgba(28,8,44,0.32)");
+    dk.addColorStop(1, "rgba(28,8,44,0)");
+    c.fillStyle = dk; c.fillRect(0, 0, geom.W, geom.H * 0.66);
+    // 暖色舞池光环(企鹅脚下)
+    drawSunsetRings(c, t, bass, fv);
+  }
+
+  // 暖色舞池光环(企鹅脚下)
+  function drawSunsetRings(c, t, bass, fv) {
+    c.save(); c.globalCompositeOperation = "lighter";
+    const fy = geom.H * 0.9, col = fv ? GOLD : S_GOLD;
+    for (let i = 0; i < 5; i++) {
+      const rx = geom.W * (0.12 + i * 0.11) * (1 + Math.sin(t * 2 + i) * 0.03 + bass * 0.05);
+      c.strokeStyle = hexA(i % 2 ? S_ORANGE : col, 0.20 * (1 - i / 6)); c.lineWidth = 2.4;
+      c.beginPath(); c.ellipse(geom.W / 2, fy, rx, rx * 0.16, 0, 0, Math.PI * 2); c.stroke();
+    }
+    c.restore();
+  }
+
   // 两侧音箱墙: 整墙 + 喇叭脉动 + EQ 灯柱
   function drawSpeakers(c, t, bass, fv) {
     const towerW = geom.W * 0.15, towerH = geom.H * 0.66, y0 = geom.H * 0.06;
@@ -586,7 +639,7 @@ export function createCut(stage, game) {
     const auraR = geom.W * (0.34 + bass * 0.05 + pengPulse * 0.04);
     const aura = c.createRadialGradient(cx, cy - geom.H * 0.06, 10, cx, cy - geom.H * 0.06, auraR);
     aura.addColorStop(0, hexA(fv ? GOLD : ACCENT, 0.32 + pengPulse * 0.15));
-    aura.addColorStop(0.5, hexA(flower ? F_ROSE : BLUE, 0.12));
+    aura.addColorStop(0.5, hexA(flower ? F_ROSE : sunset ? S_RED : BLUE, 0.12));
     aura.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = aura; c.beginPath(); c.arc(cx, cy - geom.H * 0.06, auraR, 0, Math.PI * 2); c.fill();
     c.restore();
@@ -628,7 +681,7 @@ export function createCut(stage, game) {
           const x = cx + Math.cos(ang) * rad, y = cy + Math.sin(ang) * rad * 0.62;
           s === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
         }
-        const col = fv ? GOLD : (flower ? (arc ? F_MAG : F_PINK) : (arc ? CYAN : PINK));
+        const col = fv ? GOLD : (flower ? (arc ? F_MAG : F_PINK) : sunset ? (arc ? S_ORANGE : S_GOLD) : (arc ? CYAN : PINK));
         c.strokeStyle = hexA(col, ps.a); c.lineWidth = ps.w;
         c.shadowColor = col; c.shadowBlur = 16; c.stroke();
       }
@@ -779,10 +832,33 @@ export function createCut(stage, game) {
   function drawShape(c, shape, a, col, t, spec, note) {
     // 花海: 背景明亮, 用正常混合(否则 lighter 叠加会把花朵冲成白团); 霓虹保持发光叠加
     if (flower) { c.globalCompositeOperation = "source-over"; flowerShape(c, shape, a, col, t, spec); return; }
+    if (sunset) { sunsetShape(c, shape, a, col); return; }   // 日落: 发光金色音符
     c.globalCompositeOperation = "lighter";
     if (shape === 0) { glassCube(c, a, col, note); }
     else if (shape === 1) { noteRing(c, a, col, t, spec); }
     else { gemCrystal(c, a, col, t, spec, note); }
+  }
+
+  // 日落: 立体发光音符(♪/♫/♩) — 暖金渐变 + 深描边(亮背景上清晰) + 光晕, 贴合海报满屏金色音符
+  function sunsetShape(c, shape, a, col) {
+    const glyph = ["♪", "♫", "♩"][shape] || "♪";
+    // 暖金光晕(叠加发光)
+    c.save(); c.globalCompositeOperation = "lighter";
+    const R = a * 1.5;
+    const gl = c.createRadialGradient(0, 0, 2, 0, 0, R);
+    gl.addColorStop(0, hexA(col, 0.5)); gl.addColorStop(0.55, hexA(col, 0.16)); gl.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = gl; c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.fill();
+    c.restore();
+    // 音符本体
+    c.save(); c.globalCompositeOperation = "source-over";
+    c.textAlign = "center"; c.textBaseline = "middle"; c.lineJoin = "round";
+    c.font = `900 ${Math.round(a * 2.2)}px system-ui, sans-serif`;
+    c.lineWidth = a * 0.3; c.strokeStyle = "rgba(86,28,4,0.92)";  // 深棕描边压住亮天空
+    c.strokeText(glyph, 0, a * 0.08);
+    const gg = c.createLinearGradient(0, -a, 0, a);
+    gg.addColorStop(0, "#fff3c8"); gg.addColorStop(0.45, col); gg.addColorStop(1, "#ff6a1a");
+    c.fillStyle = gg; c.fillText(glyph, 0, a * 0.08);
+    c.restore();
   }
 
   // 玻璃立方: 等距三面 + 线框三角面 + ♪(海报同款)
@@ -867,7 +943,7 @@ export function createCut(stage, game) {
       c.shadowBlur = pass.blur;                          // 每层设一次即可
       for (let i = 1; i < pts.length; i++) {
         const frac = i / (pts.length - 1), af = pts[i].af;
-        const col = pass.white ? "#ffffff" : (fv ? GOLD : (flower ? fBladeCol(frac) : bladeCol(frac)));
+        const col = pass.white ? "#ffffff" : (fv ? GOLD : (flower ? fBladeCol(frac) : sunset ? sBladeCol(frac) : bladeCol(frac)));
         c.strokeStyle = withA(col, pass.alpha * af);
         c.lineWidth = Math.max(1, pass.w * (0.3 + frac * 0.7) * af);
         if (pass.blur) c.shadowColor = pass.white ? (fv ? GOLD : COOL) : col;
@@ -891,7 +967,7 @@ export function createCut(stage, game) {
     if (t - last.t > 0.10) return;
     const prev = trail[trail.length - 2];
     const ang = Math.atan2(last.y - prev.y, last.x - prev.x);
-    const glow = fv ? GOLD : COOL, hilt = fv ? PINK : (flower ? F_PINK : VIOLET), L = geom.H * 0.095, bw = 6.5;
+    const glow = fv ? GOLD : COOL, hilt = fv ? PINK : (flower ? F_PINK : sunset ? S_RED : VIOLET), L = geom.H * 0.095, bw = 6.5;
     c.save(); c.translate(last.x, last.y); c.rotate(ang); c.globalCompositeOperation = "lighter";
     c.shadowColor = glow; c.shadowBlur = 12; c.fillStyle = hexA(glow, 0.5);
     c.beginPath(); c.moveTo(-L * 0.28, 0); c.lineTo(0, -bw); c.lineTo(L, 0); c.lineTo(0, bw); c.closePath(); c.fill();
@@ -929,7 +1005,7 @@ export function createCut(stage, game) {
     const w = geom.W * 0.7, h = 40, x = (geom.W - w) / 2, y = geom.H * 0.905 - h;
     c.save();
     c.globalAlpha = 0.5 + Math.sin(t * 4) * 0.16;
-    c.fillStyle = "rgba(12,8,26,0.5)"; c.strokeStyle = hexA(flower ? F_PINK : CYAN, 0.5); c.lineWidth = 1.5;
+    c.fillStyle = "rgba(12,8,26,0.5)"; c.strokeStyle = hexA(flower ? F_PINK : sunset ? S_GOLD : CYAN, 0.5); c.lineWidth = 1.5;
     roundRectPath(c, x, y, w, h, 20); c.fill(); c.stroke();
     c.globalAlpha = 0.85 + Math.sin(t * 4) * 0.12;
     c.fillStyle = "#eaf2ff"; c.font = "800 15px system-ui"; c.textAlign = "center"; c.textBaseline = "middle";
@@ -971,6 +1047,11 @@ function withA(col, a) { return Array.isArray(col) ? `rgba(${col[0]},${col[1]},$
 
 function fBladeCol(f) {
   return f < 0.5 ? lerpHex(F_PINK, F_GOLD, f / 0.5) : lerpHex(F_GOLD, F_MAG, (f - 0.5) / 0.5);
+}
+
+// 日落刀光: 亮金 -> 琥珀 -> 落日红
+function sBladeCol(f) {
+  return f < 0.5 ? lerpHex("#fff2b0", S_AMBER, f / 0.5) : lerpHex(S_AMBER, S_RED, (f - 0.5) / 0.5);
 }
 
 // ================= 花海: 花朵音符 / 花瓣 / 带刺障碍 =================

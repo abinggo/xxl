@@ -1,21 +1,21 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785337429";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785338504";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
 // 星光闪烁、音符上浮、标题流光 + 海报整体轻微呼吸缩放, 让静图"活"起来。
-// 每首歌自带一个小图标, 让选曲一眼能分清(霓虹/花海)
-const SONG_ICON = { neon: "💎", flower: "🌸" };
+// 每首歌自带一个小图标, 让选曲一眼能分清(日落/花海)
+const SONG_ICON = { sunset: "🌅", flower: "🌸" };
 
 export function renderHome(root, { songs, onStart, onCustom }) {
-  const list = songs && songs.length ? songs : [{ id: "neon", name: "霓虹夜航", genre: "City Pop", theme: "neon" }];
+  const list = songs && songs.length ? songs : [{ id: "riluo", name: "日落大道", genre: "Sunset Drive", theme: "sunset" }];
   let sel = 0;                                   // 选中的歌(决定音乐 + 谱面 + 进场主题)
 
   const el = document.createElement("div");
   el.className = "screen home home--cover";
   el.innerHTML = `
     <div class="cover">
-      <img class="cover__img" id="coverImg" src="./assets/bg/cover.png" alt="一拍即合 · 节拍切击" draggable="false" />
+      <img class="cover__img" id="coverImg" src="./assets/bg/riluo_cover.png" alt="一拍即合 · 节拍切击" draggable="false" />
       <canvas class="cover__fx" id="coverFx"></canvas>
       <button class="cover__pickbtn" id="songBtn"></button>
       <button class="hot hot--play" id="startBtn" aria-label="开始"></button>
