@@ -1,5 +1,5 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785335894";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785336542";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
@@ -9,6 +9,8 @@ const SONG_ICON = { neon: "💎", flower: "🌸" };
 // 视觉主题皮肤(和歌曲解绑): 右上角单独切, 只换配色/背景/切割物, 不动歌与谱面
 const THEME_ORDER = ["neon", "flower"];
 const THEME_LABEL = { neon: "💎 霓虹皮", flower: "🌸 花海皮" };
+// 首页海报皮肤: 右上角切皮肤时, 直接换整张封面底图(霓虹海报 <-> 花海海报)
+const THEME_COVER = { neon: "./assets/bg/cover.png", flower: "./assets/bg/huahai_cover.png" };
 
 export function renderHome(root, { songs, onStart, onCustom }) {
   const list = songs && songs.length ? songs : [{ id: "neon", name: "霓虹夜航", genre: "City Pop", theme: "neon" }];
@@ -39,11 +41,16 @@ export function renderHome(root, { songs, onStart, onCustom }) {
 
   const songBtn = el.querySelector("#songBtn");
   const themeBtn = el.querySelector("#themeBtn");
+  const coverImg = el.querySelector("#coverImg");
   const sheet = el.querySelector("#songSheet");
   const listEl = el.querySelector("#songList");
 
   function iconOf(s) { return SONG_ICON[s.theme] || "🎵"; }
-  function paintThemeBtn() { themeBtn.textContent = THEME_LABEL[theme] || THEME_LABEL.neon; }
+  // 应用皮肤: 换按钮文案 + 直接把整张首页海报换成对应主题(霓虹/花海)
+  function applyThemeSkin() {
+    themeBtn.textContent = THEME_LABEL[theme] || THEME_LABEL.neon;
+    coverImg.src = THEME_COVER[theme] || THEME_COVER.neon;
+  }
   function paintSongBtn() { songBtn.innerHTML = `${iconOf(list[sel])} <b>${list[sel].name}</b> ▾`; }
   function paintList() {
     listEl.innerHTML = list.map((s, i) => `
@@ -67,7 +74,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   // 右上角: 在皮肤间循环切换(只换视觉, 不动歌与谱面)
   themeBtn.addEventListener("click", () => {
     theme = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
-    paintThemeBtn();
+    applyThemeSkin();
   });
 
   // 开始开拍 => 用【选中的歌】+【选中的皮肤】进场(两者解绑)
@@ -78,7 +85,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   fi.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { closeSheet(); onCustom(f, theme); } });
 
   paintSongBtn();
-  paintThemeBtn();
+  applyThemeSkin();               // 初始按当前皮肤渲染按钮 + 首页海报
   paintList();                    // 预填充列表, 弹层任何时候显示都不会是空的
   root.appendChild(el);
   startCoverAnim(el.querySelector("#coverFx"));

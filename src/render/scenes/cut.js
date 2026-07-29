@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785335894";
-import { hexA } from "../stage.js?v=1785335894";
-import { clamp, lerp } from "./base.js?v=1785335894";
+import { COLORS } from "../config.js?v=1785336542";
+import { hexA } from "../stage.js?v=1785336542";
+import { clamp, lerp } from "./base.js?v=1785336542";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -104,15 +104,16 @@ export function createCut(stage, game) {
   function sliceSeg(ax, ay, bx, by) {
     const t = NT();
     const ang = Math.atan2(by - ay, bx - ax);
+    // 划过即切: 只要音符已经出现在屏幕上(还没掉出/还没判 miss), 划到就切开得分,
+    // 不用等它的判定光圈收拢。卡在拍点(perfect 窗)给 PERFECT, 其余算 GOOD。
     for (let i = firstActive; i < chart.length; i++) {
       const n = chart[i];
       if (n._done) continue;
-      const dt = t - n.time;
-      if (dt < -CUT.good) { if (n.time - t > 0.5) break; continue; }
-      if (dt > CUT.good) continue;
       const p = notePos(n, t);
+      if (p.el < 0) break;                             // 后面的音符更晚, 都还没起飞 => 结束扫描
+      if (p.y > geom.H * 1.12) continue;               // 已掉出屏幕
       if (segDist(p.x, p.y, ax, ay, bx, by) <= noteRadius(n)) {
-        resolveHit(n, Math.abs(dt) <= CUT.perfect ? "perfect" : "good", ang);
+        resolveHit(n, Math.abs(t - n.time) <= CUT.perfect ? "perfect" : "good", ang);
       }
     }
     for (const d of decor) {
@@ -127,15 +128,18 @@ export function createCut(stage, game) {
 
   function sliceNearest() {
     const t = NT();
+    // 键盘/点击: 切当前屏幕上"最该切"的那颗(离拍点最近的已出现音符), 同样不必等光圈
     let best = null, bestDt = Infinity;
     for (let i = firstActive; i < chart.length; i++) {
       const n = chart[i];
       if (n._done) continue;
+      const p = notePos(n, t);
+      if (p.el < 0) break;                             // 还没出现, 后面更晚 => 结束
+      if (p.y > geom.H * 1.12) continue;               // 已掉出屏幕
       const dt = Math.abs(t - n.time);
       if (dt < bestDt) { bestDt = dt; best = n; }
-      if (n.time - t > 0.5) break;
     }
-    if (best && bestDt <= CUT.good) {
+    if (best) {
       const p = notePos(best, t);
       const ang = -0.7 + Math.sin(best._bob) * 0.5;
       synthBlade(p.x, p.y, ang);

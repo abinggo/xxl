@@ -1,5 +1,5 @@
 // 场景共享基座: IP 角色绘制(优先立绘贴图, 无则矢量回退) + 影子 + 缓动/提示工具
-import { hexA, roundRect } from "../stage.js?v=1785335894";
+import { hexA, roundRect } from "../stage.js?v=1785336542";
 
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const lerp = (a, b, t) => a + (b - a) * t;

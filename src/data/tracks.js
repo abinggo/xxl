@@ -1,7 +1,7 @@
 // 内置原创曲目 + 场景化谱面编译器
 // 曲目以"步进网格"定义(每小节16个16分音符); 音乐床与谱面从同一网格派生 => 卡点100%对齐
 // 谱面不再是抽象音符, 而是"动作事件": go(点击) / hold(蓄力) / trap(假动作,别按)
-import { freq } from "./notes.js?v=1785335894";
+import { freq } from "./notes.js?v=1785336542";
 
 const STEPS_PER_BAR = 16;
 const BEATS_PER_BAR = 4;
