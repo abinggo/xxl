@@ -1,14 +1,14 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js?v=1785334738";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785334738";
-import { getIP, loadIPSprites } from "./data/ip.js?v=1785334738";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785334738";
-import { createGame } from "./core/engine.js?v=1785334738";
-import { renderHome } from "./ui/levelselect.js?v=1785334738";
-import { renderResult } from "./ui/result.js?v=1785334738";
-import { generateBeatmap } from "./core/generator.js?v=1785334738";
-import { createMusicPlayer } from "./audio/synth.js?v=1785334738";
-import { createBufferPlayer } from "./audio/decoded.js?v=1785334738";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785335894";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785335894";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785335894";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785335894";
+import { createGame } from "./core/engine.js?v=1785335894";
+import { renderHome } from "./ui/levelselect.js?v=1785335894";
+import { renderResult } from "./ui/result.js?v=1785335894";
+import { generateBeatmap } from "./core/generator.js?v=1785335894";
+import { createMusicPlayer } from "./audio/synth.js?v=1785335894";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785335894";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 
@@ -17,6 +17,7 @@ const screens = document.getElementById("screens");
 let game = null;
 let inputBound = false;
 let currentSong = null;                 // 当前选中的曲目(用于"再来一次"重开同一首)
+let currentTheme = "neon";              // 当前皮肤(和歌曲解绑, 右上角切; 用于"再来一次"沿用)
 
 // ---------- 曲库: 就两首歌, 每首自带主题(选哪首 => 进哪首对应的界面) ----------
 const SONGS = [
@@ -65,18 +66,18 @@ function goHome() {
   clearScreens();
   renderHome(screens, {
     songs: SONGS,
-    onStart: (song) => playSelected(song),
-    onCustom: (file) => startCustom(file),
+    onStart: (song, theme) => playSelected(song, theme),
+    onCustom: (file, theme) => startCustom(file, theme),
   });
 }
 
-// 选定歌曲进场: 主题由歌曲自带(霓虹=>霓虹界面, 花海=>花海界面)
-function playSelected(song) {
+// 选定歌曲进场: 歌管音乐/谱面, 皮肤(theme)由右上角单独选, 两者解绑
+function playSelected(song, theme) {
   currentSong = song;
-  const theme = song.theme || "neon";
-  if (song.kind === "synth") startSynthSong(theme);
-  else if (song._buf) launchBuffer(song._buf, song, theme);   // 已解码(自选/重开): 直接复用
-  else startMp3Song(song, theme);
+  currentTheme = theme || song.theme || "neon";
+  if (song.kind === "synth") startSynthSong(currentTheme);
+  else if (song._buf) launchBuffer(song._buf, song, currentTheme);   // 已解码(自选/重开): 直接复用
+  else startMp3Song(song, currentTheme);
 }
 
 // ---------- 内置合成曲(霓虹夜航) + 任选主题皮肤 ----------
@@ -107,7 +108,7 @@ async function startMp3Song(s, theme) {
   launchBuffer(audioBuf, s, theme);
 }
 
-// ---------- 自选本地音乐(沿用霓虹主题) ----------
+// ---------- 自选本地音乐(皮肤沿用右上角所选) ----------
 async function startCustom(file, theme = "neon") {
   loading("分析音乐、自动生成谱面…");
   await unlockAudio();
@@ -115,6 +116,7 @@ async function startCustom(file, theme = "neon") {
   const audioBuf = await ctx.decodeAudioData(await file.arrayBuffer());
   const info = { id: "custom", name: file.name.replace(/\.[^.]+$/, ""), genre: "AUTO", custom: true, theme };
   currentSong = { ...info, _buf: audioBuf };
+  currentTheme = theme;                              // 记住皮肤, "再来一次"沿用
   launchBuffer(audioBuf, info, theme);
 }
 
@@ -152,7 +154,7 @@ function showResult(result) {
   if (result.song.levelId) recordClear(result.song.levelId, result.rank, result.score);
   renderResult(screens, result, {
     onRetry: () => {
-      if (currentSong) { playSelected(currentSong); return; }  // 重开当前歌曲(主题随歌)
+      if (currentSong) { playSelected(currentSong, currentTheme); return; }  // 重开: 同歌 + 同皮肤
       goHome();
     },
     onHome: () => goHome(),

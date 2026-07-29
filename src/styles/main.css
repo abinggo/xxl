@@ -337,6 +337,18 @@ body {
 .cover__pickbtn:hover { transform: translateX(-50%) scale(1.05); box-shadow: 0 2px 22px rgba(0,0,0,0.5), 0 0 24px rgba(34,225,255,0.6); }
 .cover__pickbtn:active { transform: translateX(-50%) scale(0.97); }
 
+/* 右上角: 主题皮肤切换(和歌曲解绑, 只切视觉) */
+.cover__themebtn {
+  position: absolute; right: 3.5%; top: 28.5%; z-index: 5;
+  padding: 7px 14px; border-radius: 24px; cursor: pointer; white-space: nowrap; line-height: 1;
+  font-size: 12.5px; font-weight: 800; color: #fff; letter-spacing: .5px;
+  background: rgba(16,8,30,0.55); border: 1.5px solid rgba(255,111,181,0.7);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.4), 0 0 16px rgba(255,111,181,0.4); backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent; transition: transform .12s ease, box-shadow .18s ease;
+}
+.cover__themebtn:hover { transform: scale(1.06); box-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 22px rgba(255,111,181,0.65); }
+.cover__themebtn:active { transform: scale(0.96); }
+
 /* ---- 选择歌曲弹层 ---- */
 .sheet {
   position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;

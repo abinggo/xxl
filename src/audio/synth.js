@@ -1,17 +1,24 @@
 // 合成音乐引擎: 用振荡器/噪声合成鼓、贝斯、旋律
 // 采用 Web Audio "前瞻调度" (A Tale of Two Clocks): 每 25ms 预排未来 150ms 的事件,
 // 所有 osc.start(when) 用 AudioContext 精确时间 => 采样级精准, 与谱面同源 => 卡点 100% 准
-import { getAudio } from "./context.js?v=1785334738";
+import { getAudio } from "./context.js?v=1785335894";
 
 const LOOKAHEAD = 0.15;   // 预排窗口(秒)
 const TICK = 25;          // 调度器轮询(ms)
 
 // ---------- 单音色 ----------
+// 噪声 buffer 缓存: 原来每次 snare/hat 都新建数组并逐采样填随机, 踩镲极密 => 主线程 GC 抖动 => 掉帧卡顿。
+// 噪声内容听感上无差别, 按时长缓存复用(buffer 不可变, 可被多个 source 共享), 每敲一下降为一次查表。
+const _noiseCache = new Map();
 function noiseBuffer(ctx, dur = 0.3) {
+  const key = Math.round(dur * 1000);
+  let buf = _noiseCache.get(key);
+  if (buf) return buf;
   const len = Math.floor(ctx.sampleRate * dur);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  _noiseCache.set(key, buf);
   return buf;
 }
 
