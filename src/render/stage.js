@@ -1,7 +1,7 @@
 // 共享舞台: 背景 / 霓虹透视地板 / 演唱会灯光 / HUD / 倒计时 / 相机抖动 / 闪光 / 粒子
 // 场景(runner/whack/slice)只负责在舞台上画"演员", 舞台负责其余一切随音乐律动
-import { createFx } from "./fx.js?v=1785390451";
-import { COLORS } from "./config.js?v=1785390451";
+import { createFx } from "./fx.js?v=1785392993";
+import { COLORS } from "./config.js?v=1785392993";
 
 export function createStage(canvas, { song }) {
   const ctx = canvas.getContext("2d");
@@ -182,20 +182,7 @@ export function createStage(canvas, { song }) {
       ctx.fillText(`${mmss(world.t)} / ${mmss(world.duration)}`, W / 2, world.best > 0 ? 84 : 70);
     }
 
-    // ---- 右: 当前评级 ----
-    ctx.textAlign = "right";
-    ctx.font = "800 11px system-ui, sans-serif";
-    ctx.fillStyle = "rgba(243,240,255,0.6)";
-    ctx.fillText("当前评级", W - 20, 30);
-    const gc = gradeColor(grd);
-    ctx.font = "900 18px system-ui, sans-serif";
-    const gw = ctx.measureText(grd).width + 20;
-    ctx.fillStyle = hexA(gc, 0.16);
-    roundRect(ctx, W - 20 - gw, 38, gw, 25, 7); ctx.fill();
-    ctx.strokeStyle = hexA(gc, 0.9); ctx.lineWidth = 1.5;
-    roundRect(ctx, W - 20 - gw, 38, gw, 25, 7); ctx.stroke();
-    ctx.fillStyle = gc; ctx.shadowColor = gc; ctx.shadowBlur = 10;
-    ctx.fillText(grd, W - 24, 57); ctx.shadowBlur = 0;
+    // ---- 右上角「当前评级」徽章已移除: 避免被右侧回退/暂停按钮遮挡; 评级仍由下方进度条 + S/SS/SSS 三星呈现 ----
 
     // ---- 评级条 + S/SS/SSS 三星（MISS 归零，满级喷火） ----
     const bx = 20, bw = W - 40, by = 96, bh = 10, br = bh / 2;

@@ -1,18 +1,18 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js?v=1785390451";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785390451";
-import { getIP, loadIPSprites } from "./data/ip.js?v=1785390451";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785390451";
-import { createGame } from "./core/engine.js?v=1785390451";
-import { renderHome } from "./ui/levelselect.js?v=1785390451";
-import { renderResult } from "./ui/result.js?v=1785390451";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785392993";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785392993";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785392993";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785392993";
+import { createGame } from "./core/engine.js?v=1785392993";
+import { renderHome } from "./ui/levelselect.js?v=1785392993";
+import { renderResult } from "./ui/result.js?v=1785392993";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { recordLeaderboardScore } from "./data/leaderboard.js";
 import { getPrizes, savePrizeBatch } from "./data/prizes.js";
 import { renderPrizes } from "./ui/prizes.js";
-import { generateBeatmap } from "./core/generator.js?v=1785390451";
-import { createMusicPlayer } from "./audio/synth.js?v=1785390451";
-import { createBufferPlayer } from "./audio/decoded.js?v=1785390451";
+import { generateBeatmap } from "./core/generator.js?v=1785392993";
+import { createMusicPlayer } from "./audio/synth.js?v=1785392993";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785392993";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 

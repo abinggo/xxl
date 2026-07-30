@@ -679,6 +679,43 @@ body {
   border: 0; box-shadow: 0 8px 26px rgba(255,79,216,.28);
 }
 
+/* 奖品陈列墙: 可点击 + 已获得徽章 */
+.prize-card { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
+.prize-card:hover, .prize-card:focus-visible {
+  transform: translateY(-4px); outline: none;
+  box-shadow: 0 18px 36px rgba(0,0,0,.4), 0 0 24px rgba(255,79,216,.28);
+}
+.prize-card--owned { border-color: rgba(255,216,77,.5); }
+.prize-card__owned {
+  position: absolute; z-index: 1; right: 8px; top: 8px; padding: 4px 8px; border-radius: 999px;
+  color: #23140a; font-size: 9px; font-weight: 900; font-style: normal;
+  background: linear-gradient(90deg, #ffe066, #ff9f50); box-shadow: 0 2px 10px rgba(255,159,80,.5);
+}
+
+/* 礼品卡大图弹层 */
+.prize-detail { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; }
+.prize-detail__mask { position: absolute; inset: 0; background: rgba(4,2,10,.82); backdrop-filter: blur(6px); }
+.prize-detail__card {
+  position: relative; z-index: 1; width: 84%; max-width: 340px;
+  transform: scale(.9); opacity: 0; transition: transform .22s cubic-bezier(.2,.9,.3,1.2), opacity .18s ease;
+}
+.prize-detail--in .prize-detail__card { transform: scale(1); opacity: 1; }
+.prize-detail__card img {
+  width: 100%; height: auto; display: block; border-radius: 16px;
+  box-shadow: 0 26px 60px rgba(0,0,0,.6), 0 0 40px rgba(255,79,216,.25);
+}
+/* 透明热区: 盖住礼品卡里烤进去的「点击领取」按钮, 点了即关卡 */
+.prize-detail__claim {
+  position: absolute; left: 13%; bottom: 3%; width: 74%; height: 9%;
+  background: transparent; border: 0; cursor: pointer; font-size: 0;
+  border-radius: 999px; -webkit-tap-highlight-color: transparent;
+}
+.prize-detail__close {
+  position: absolute; top: -14px; right: -10px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  color: #fff; font: 300 24px/1 var(--font); background: rgba(20,10,32,.9);
+  border: 1px solid rgba(255,255,255,.28); box-shadow: 0 4px 16px rgba(0,0,0,.5);
+}
+
 /* 载入遮罩 */
 .loading { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: var(--bg-1); }
 .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--stroke); border-top-color: var(--cyan); animation: spin 0.8s linear infinite; }

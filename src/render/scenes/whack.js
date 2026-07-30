@@ -1,7 +1,7 @@
 // 场景B · 疯狂敲钉: 钉子卡拍从洞里冒头, 点击一锤夯平; 炸弹是陷阱, 别砸
-import { COLORS, approachTime } from "../config.js?v=1785390451";
-import { hexA, roundRect } from "../stage.js?v=1785390451";
-import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785390451";
+import { COLORS, approachTime } from "../config.js?v=1785392993";
+import { hexA, roundRect } from "../stage.js?v=1785392993";
+import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785392993";
 
 export function createWhack(stage, { ip, meta }) {
   const { geom } = stage;

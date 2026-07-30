@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785390451";
-import { hexA } from "../stage.js?v=1785390451";
-import { clamp, lerp } from "./base.js?v=1785390451";
+import { COLORS } from "../config.js?v=1785392993";
+import { hexA } from "../stage.js?v=1785392993";
+import { clamp, lerp } from "./base.js?v=1785392993";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -444,11 +444,11 @@ export function createCut(stage, game) {
       songId: game.song.id,
       songName: game.song.name,
       theme,
-      name: flower ? "《花海》定制黑胶" : "《日落大道》纪念卡",
+      name: flower ? "周同学定制黑胶唱片" : "大疆 Pocket 3",
       rarity: "隐藏福利",
       image: flower
-        ? "./assets/gift/original/huahai_gift_full.png"
-        : "./assets/gift/original/riluo_gift_full.png",
+        ? "./assets/gift/cards/huahai_card.png"
+        : "./assets/gift/cards/riluo_card.png",
     });
   }
 
