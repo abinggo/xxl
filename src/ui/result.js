@@ -12,6 +12,7 @@ export function renderResult(root, result, { onRetry, onHome, onLeaderboard }) {
     <div class="result__song">${song.emoji} ${song.name} · ${song.difficulty.toUpperCase()}</div>
     <div class="result__score">${String(score).padStart(6, "0")}</div>
     ${isNew ? `<div class="newbest">🏆 新纪录!</div>` : `<div style="color:var(--text-dim);font-size:12px;margin-top:6px">最佳 ${best}</div>`}
+    ${result.prizes?.length ? `<div class="result__prizes">🎁 本局获得 ${result.prizes.length} 件奖品 · 已放入我的奖品</div>` : ""}
     <div class="result__stats">
       <div class="stat stat--perfect"><div class="stat__v">${counts.perfect}</div><div class="stat__l">PERFECT</div></div>
       <div class="stat stat--good"><div class="stat__v">${counts.good}</div><div class="stat__l">GOOD</div></div>

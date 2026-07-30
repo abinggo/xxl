@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785387662";
-import { hexA } from "../stage.js?v=1785387662";
-import { clamp, lerp } from "./base.js?v=1785387662";
+import { COLORS } from "../config.js?v=1785390451";
+import { hexA } from "../stage.js?v=1785390451";
+import { clamp, lerp } from "./base.js?v=1785390451";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -145,7 +145,6 @@ export function createCut(stage, game) {
   const trail = [];
   let prevPt = null, autoPt = null;
   let firstActive = 0, recent = null, lastScore = 0, lastPopT = -1;
-  let giftPaused = false, giftMask = null;           // 隐藏福利: 弹窗暂停态 + 遮罩引用
   let fever = 0, feverT = -1, feverFlashT = -1;
   let freezeOff = 0, freezeUntil = -1, freezeFlashT = -1, lastFrameT = -1; // 冰冻: 累积偏移冻结音符时间线
   const NT = () => game.t - freezeOff;               // 音符时间线(冰冻期间停住), 视觉/刀光仍用 game.t
@@ -291,12 +290,11 @@ export function createCut(stage, game) {
     }
   }
 
-  function laneTap() { if (giftPaused) return; sliceNearest(); }
-  function tap() { if (giftPaused) return; sliceNearest(); }
+  function laneTap() { sliceNearest(); }
+  function tap() { sliceNearest(); }
 
   let bladeAcc = 0;                                  // 掉屑节流: 累积挥动距离
   function pointer(type, x, y) {
-    if (giftPaused) return;                          // 礼物弹窗期间不接受切割
     const t = game.t;
     if (type === "down") {
       trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; bladeAcc = 0;
@@ -429,7 +427,7 @@ export function createCut(stage, game) {
     lastPopT = t;
   }
 
-  // 隐藏福利命中: 满屏礼花绽放 + 大加分, 稍候定格并弹出礼物界面(点击领取继续)
+  // 隐藏福利命中: 满屏礼花 + 侧边奖励卡；不中断音乐和切割。
   function resolveGift(n, x, y, ang) {
     const t = game.t;
     recent = { t, j: "perfect" }; pengPulse = 1; pengMood = 1; lastPopT = t;
@@ -442,39 +440,16 @@ export function createCut(stage, game) {
     stage.fx.spawnPop(x, y - geom.H * 0.02, "+888", GOLD, { size: 20, rise: 1.0, decay: 0.03 });
     stage.shakeBy(13); stage.flash(GOLD, 0.32);
     if (navigator.vibrate) navigator.vibrate([18, 24, 40]);
-    setTimeout(showGiftPopup, 500);                  // 让礼花先绽放 ~0.5s 再定格弹窗
-  }
-
-  // 礼物弹窗: 全屏遮罩 + 主题礼物成品图, 暂停整局(音频+帧), 点击任意处领取并继续
-  function showGiftPopup() {
-    if (giftPaused) return;
-    giftPaused = true;
-    game.pause();
-    if (sunsetBg) sunsetBg.pause();
-    if (flowerBg) flowerBg.pause();
-    const src = (flower ? "./assets/gift/original/huahai_gift_full.png" : "./assets/gift/original/riluo_gift_full.png") + "?v=1785387662";
-    const glow = flower ? "rgba(255,95,174,.65)" : "rgba(255,158,60,.65)";
-    const mask = document.createElement("div");
-    giftMask = mask;
-    mask.style.cssText = "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,2,14,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer";
-    mask.innerHTML =
-      '<img src="' + src + '" alt="gift" style="max-height:86vh;max-width:92vw;border-radius:20px;box-shadow:0 0 64px ' + glow + ',0 24px 80px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.16)"/>' +
-      '<div style="margin-top:16px;color:#fff;font-size:14px;letter-spacing:2px;opacity:.85;text-shadow:0 2px 8px rgba(0,0,0,.6)">轻触任意处 · 领取并继续</div>';
-    const img = mask.querySelector("img");
-    try {
-      img.animate(
-        [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1.05)", opacity: 1, offset: .7 }, { transform: "scale(1)", opacity: 1 }],
-        { duration: 540, easing: "cubic-bezier(.2,1.5,.4,1)" }
-      );
-    } catch (e) {}
-    let closed = false;
-    const close = () => {
-      if (closed) return; closed = true;
-      mask.remove(); giftMask = null; giftPaused = false;
-      game.resume();                                 // draw 恢复后会自动重新播放背景视频
-    };
-    mask.addEventListener("click", close);
-    document.body.appendChild(mask);
+    game.collectPrize({
+      songId: game.song.id,
+      songName: game.song.name,
+      theme,
+      name: flower ? "《花海》定制黑胶" : "《日落大道》纪念卡",
+      rarity: "隐藏福利",
+      image: flower
+        ? "./assets/gift/original/huahai_gift_full.png"
+        : "./assets/gift/original/riluo_gift_full.png",
+    });
   }
 
   function triggerFreeze() { freezeUntil = game.t + FREEZE_DUR; freezeFlashT = game.t; }
@@ -1477,7 +1452,6 @@ export function createCut(stage, game) {
 
   // 离场: 暂停正在解码的背景视频, 避免后台持续耗 CPU/GPU
   function destroy() {
-    if (giftMask) { giftMask.remove(); giftMask = null; }   // 清理残留礼物弹窗
     if (sunsetBg) sunsetBg.pause(); if (flowerBg) flowerBg.pause();
   }
   return { draw, update, auto, laneTap, tap, pointer, destroy, lanes: 2, floor: false };

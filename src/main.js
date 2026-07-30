@@ -1,16 +1,18 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js?v=1785387662";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785387662";
-import { getIP, loadIPSprites } from "./data/ip.js?v=1785387662";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785387662";
-import { createGame } from "./core/engine.js?v=1785387662";
-import { renderHome } from "./ui/levelselect.js?v=1785387662";
-import { renderResult } from "./ui/result.js?v=1785387662";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785390451";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785390451";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785390451";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785390451";
+import { createGame } from "./core/engine.js?v=1785390451";
+import { renderHome } from "./ui/levelselect.js?v=1785390451";
+import { renderResult } from "./ui/result.js?v=1785390451";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { recordLeaderboardScore } from "./data/leaderboard.js";
-import { generateBeatmap } from "./core/generator.js?v=1785387662";
-import { createMusicPlayer } from "./audio/synth.js?v=1785387662";
-import { createBufferPlayer } from "./audio/decoded.js?v=1785387662";
+import { getPrizes, savePrizeBatch } from "./data/prizes.js";
+import { renderPrizes } from "./ui/prizes.js";
+import { generateBeatmap } from "./core/generator.js?v=1785390451";
+import { createMusicPlayer } from "./audio/synth.js?v=1785390451";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785390451";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 
@@ -22,8 +24,10 @@ const exitGameBtn = document.getElementById("exitGameBtn");
 const pausePanel = document.getElementById("pausePanel");
 const resumeGameBtn = document.getElementById("resumeGameBtn");
 const pauseExitBtn = document.getElementById("pauseExitBtn");
+const prizeRail = document.getElementById("prizeRail");
 let game = null;
 let inputBound = false;
+let currentRunPrizes = [];
 let currentSong = null;                 // 当前选中的曲目(用于"再来一次"重开同一首)
 let currentTheme = "sunset";            // 当前皮肤(跟随所选歌曲; 用于"再来一次"沿用)
 
@@ -40,6 +44,13 @@ const THEMES = {
   sunset: { colorA: "#ff9a3c", colorB: "#ffd24d", emoji: "🌅", scene: "切音符" },
   flower: { colorA: "#ff6fb5", colorB: "#c86bff", emoji: "🌸", scene: "切花" },
 };
+// 单局采用完整乐句收尾，不死卡统一秒数；短歌仍完整播放。
+const SONG_HIGHLIGHT_END = { riluo: 137, huahai: 130 };
+function pickGameDuration(info, audioDuration) {
+  if (audioDuration <= 115) return audioDuration;
+  if (SONG_HIGHLIGHT_END[info.id]) return Math.min(audioDuration, SONG_HIGHLIGHT_END[info.id]);
+  return Math.min(audioDuration, Math.min(110, Math.max(90, audioDuration * 0.42)));
+}
 // 把主题皮肤套到 song 元数据上(只改配色/场景名/图标等表现层, 不动音频与谱面)
 function applyTheme(song, theme) {
   const th = THEMES[theme] || THEMES.sunset;
@@ -59,6 +70,22 @@ tickClock(); setInterval(tickClock, 15000);
 
 function clearScreens() { screens.innerHTML = ""; }
 function showCanvas(show) { canvas.classList.toggle("hidden", !show); }
+function clearPrizeRail() {
+  prizeRail.innerHTML = "";
+  prizeRail.classList.add("hidden");
+}
+function collectRunPrize(prize) {
+  currentRunPrizes.push(prize);
+  prizeRail.classList.remove("hidden");
+  const card = document.createElement("article");
+  card.className = "run-prize-card";
+  card.innerHTML = `
+    <img src="${prize.image}" alt="" />
+    <div><span>已收集</span><b>${prize.name}</b></div>
+  `;
+  prizeRail.prepend(card);
+  while (prizeRail.children.length > 3) prizeRail.lastElementChild.remove();
+}
 function setGameControls(show) {
   gameControls.classList.toggle("hidden", !show);
   if (!show) setPauseUI(false);
@@ -95,6 +122,8 @@ function loading(text) {
 // ---------- 标题页(唯一入口: 单游戏"节拍切击") ----------
 function goHome() {
   if (game) { game.destroy(); game = null; }
+  currentRunPrizes = [];
+  clearPrizeRail();
   setGameControls(false);
   showCanvas(false);
   clearScreens();
@@ -103,12 +132,19 @@ function goHome() {
     onStart: (song, theme) => playSelected(song, theme),
     onCustom: (file, theme) => startCustom(file, theme),
     onLeaderboard: (song) => openLeaderboard(song),
+    onPrizes: () => openPrizes(),
+    prizeCount: getPrizes().length,
   });
 }
 
 function openLeaderboard(selectedSong) {
   const song = SONGS.find((item) => item.id === selectedSong?.id) || selectedSong || SONGS[0];
   showLeaderboard(screens, { songs: SONGS, selectedSong: song });
+}
+
+function openPrizes() {
+  clearScreens();
+  renderPrizes(screens, { onBack: () => goHome() });
 }
 
 // 选定歌曲进场: 歌管音乐/谱面, 皮肤(theme)由右上角单独选, 两者解绑
@@ -134,7 +170,9 @@ async function startSynthSong(theme) {
     levelId: level.id, levelLabel: level.label, best };
   song = applyTheme(song, theme);
   const player = createMusicPlayer(compiled.music);
-  launch(song, player, compiled.charts.normal, compiled.duration, { ...compiled.meta, theme });
+  const playDuration = pickGameDuration(song, compiled.duration);
+  const events = compiled.charts.normal.filter((event) => event.time <= playDuration - 0.25);
+  launch(song, player, events, playDuration, { ...compiled.meta, theme });
 }
 
 // ---------- mp3 BGM(如花海): 拉流 -> 解码 -> 缓存到 currentSong._buf 复用 ----------
@@ -162,24 +200,28 @@ async function startCustom(file, theme = "sunset") {
 
 // ---------- 从已解码的 AudioBuffer 起一局(mp3/自选/重开 共用) ----------
 function launchBuffer(audioBuf, info, theme) {
-  const events = generateBeatmap(audioBuf, "normal");
-  sprinkleItems(events, audioBuf.duration);          // 隐藏道具(障碍/加分/冰冻)
+  const playDuration = pickGameDuration(info, audioBuf.duration);
+  const events = generateBeatmap(audioBuf, "normal").filter((event) => event.time <= playDuration - 0.25);
+  sprinkleItems(events, playDuration);               // 隐藏道具(障碍/加分/冰冻)
   const player = createBufferPlayer(audioBuf);
   let song = { id: info.id, name: info.name, artist: info.custom ? "自选音乐" : (info.genre || "BGM"),
     genre: info.genre, ip: { name: "企鹅", emoji: "🐧" }, difficulty: "normal",
     custom: info.custom, levelLabel: info.name };
   song = applyTheme(song, theme);
-  launch(song, player, events, audioBuf.duration, { bpm: 120, beatDur: 0.5, scene: "cut", theme });
+  launch(song, player, events, playDuration, { bpm: 120, beatDur: 0.5, scene: "cut", theme });
 }
 
 // ---------- 启动一局 ----------
 function launch(song, player, events, duration, meta) {
   clearScreens();
+  currentRunPrizes = [];
+  clearPrizeRail();
   showCanvas(true);
   setGameControls(true);
   game = createGame(canvas, {
     song, player, events, duration, meta,
     onComplete: (result) => showResult(result),
+    onPrize: (prize) => collectRunPrize(prize),
   });
   window.__game = game;
   if (new URLSearchParams(location.search).get("auto") === "1") game.setAutoplay(true);
@@ -189,6 +231,9 @@ function launch(song, player, events, duration, meta) {
 
 // ---------- 结算 ----------
 function showResult(result) {
+  result.prizes = savePrizeBatch(currentRunPrizes);
+  currentRunPrizes = [];
+  clearPrizeRail();
   setGameControls(false);
   showCanvas(false);
   clearScreens();

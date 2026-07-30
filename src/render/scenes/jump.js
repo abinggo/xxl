@@ -1,9 +1,9 @@
 // 关卡A · 音符跳跃: 单键让 IP 沿霓虹音符圆盘不断往上跳(参考 音符跳跃.png)
 // 输入: 单击/空格 = 起跳一次; 命中卡拍的音符盘 -> 弹起+爆光; trap=裂盘, 别点
-import { COLORS } from "../config.js?v=1785387662";
-import { hexA } from "../stage.js?v=1785387662";
-import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785387662";
-import { judgeHit, WINDOWS } from "../../core/judge.js?v=1785387662";
+import { COLORS } from "../config.js?v=1785390451";
+import { hexA } from "../stage.js?v=1785390451";
+import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785390451";
+import { judgeHit, WINDOWS } from "../../core/judge.js?v=1785390451";
 
 export function createJump(stage, game) {
   const { geom } = stage;
