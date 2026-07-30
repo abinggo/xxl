@@ -1,7 +1,7 @@
 // 主渲染器: 舞台 / 判定圈 / 收缩节拍环 / HUD, 全部随音乐频谱律动
-import { APPROACH, LANE_X, JUDGE_Y, TARGET_R, RING_EXTRA, COLORS } from "./config.js?v=1785383297";
-import { createFx } from "./fx.js?v=1785383297";
-import { createCharacter } from "./character.js?v=1785383297";
+import { APPROACH, LANE_X, JUDGE_Y, TARGET_R, RING_EXTRA, COLORS } from "./config.js?v=1785384361";
+import { createFx } from "./fx.js?v=1785384361";
+import { createCharacter } from "./character.js?v=1785384361";
 
 export function createRenderer(canvas, song) {
   const ctx = canvas.getContext("2d");
@@ -168,11 +168,11 @@ export function createRenderer(canvas, song) {
     ctx.fillStyle = "#fff";
     ctx.fillText(String(scorer.score).padStart(6, "0"), 20, 56);
 
-    // 进度条
+    // 评级进度条
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.fillRect(20, 100, W - 40, 4);
     ctx.fillStyle = "#22e1ff";
-    ctx.fillRect(20, 100, (W - 40) * Math.min(1, world.progress || 0), 4);
+    ctx.fillRect(20, 100, (W - 40) * Math.min(1, scorer.rankProgress || 0), 4);
 
     // Combo
     if (scorer.combo > 1) {

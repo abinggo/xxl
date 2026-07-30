@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#0a0616" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
   <title>TME 节奏派对</title>
-  <link rel="stylesheet" href="./src/styles/main.css?v=1785383297" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=1785384361" />
 </head>
 <body>
   <!-- 页面背景（手机外壳外的氛围） -->
@@ -34,6 +34,17 @@
     <div class="viewport" id="viewport">
       <!-- 游戏 Canvas（游玩时显示） -->
       <canvas id="gameCanvas" class="game-canvas hidden"></canvas>
+      <div class="game-controls hidden" id="gameControls" aria-label="游戏控制">
+        <button class="game-control" id="exitGameBtn" type="button" aria-label="退出游戏" title="退出游戏">↩</button>
+        <button class="game-control game-control--primary" id="pauseGameBtn" type="button" aria-label="暂停游戏" title="暂停游戏">Ⅱ</button>
+      </div>
+      <div class="pause-panel hidden" id="pausePanel">
+        <div class="pause-panel__icon">Ⅱ</div>
+        <div class="pause-panel__title">游戏已暂停</div>
+        <div class="pause-panel__tip">休息一下，节奏会停在这里</div>
+        <button class="pause-panel__resume" id="resumeGameBtn" type="button">继续游戏</button>
+        <button class="pause-panel__exit" id="pauseExitBtn" type="button">退出本局</button>
+      </div>
       <!-- DOM 屏幕层（选曲/结算等）由 JS 注入 -->
       <div class="screens" id="screens"></div>
     </div>
@@ -43,6 +54,6 @@
 
   <p class="hint">← 手机模拟器 · 卡着音乐按 <kbd>空格</kbd> 或点击屏幕出手 · 假动作别按 →</p>
 
-  <script type="module" src="./src/main.js?v=1785383297"></script>
+  <script type="module" src="./src/main.js?v=1785384361"></script>
 </body>
 </html>

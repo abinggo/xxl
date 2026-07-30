@@ -1,9 +1,8 @@
 // 结算页: 评级 + 统计 + 分享海报 + 本地最佳
-export function renderResult(root, result, { onRetry, onHome }) {
-  const { song, score, rank, maxCombo, counts, accuracy, fullCombo } = result;
+export function renderResult(root, result, { onRetry, onHome, onLeaderboard }) {
+  const { song, score, rank, maxCombo, counts, fullCombo } = result;
   const best = updateBest(song.id, score);
   const isNew = score >= best && score > 0;
-  const accPct = (accuracy * 100).toFixed(1);
 
   const el = document.createElement("div");
   el.className = "screen result";
@@ -12,7 +11,6 @@ export function renderResult(root, result, { onRetry, onHome }) {
     ${fullCombo ? `<div class="newbest">✦ FULL COMBO ✦</div>` : ""}
     <div class="result__song">${song.emoji} ${song.name} · ${song.difficulty.toUpperCase()}</div>
     <div class="result__score">${String(score).padStart(6, "0")}</div>
-    <div style="color:var(--text-dim);font-size:13px">准确率 ${accPct}%</div>
     ${isNew ? `<div class="newbest">🏆 新纪录!</div>` : `<div style="color:var(--text-dim);font-size:12px;margin-top:6px">最佳 ${best}</div>`}
     <div class="result__stats">
       <div class="stat stat--perfect"><div class="stat__v">${counts.perfect}</div><div class="stat__l">PERFECT</div></div>
@@ -20,6 +18,7 @@ export function renderResult(root, result, { onRetry, onHome }) {
       <div class="stat stat--miss"><div class="stat__v">${counts.miss}</div><div class="stat__l">MISS</div></div>
       <div class="stat stat--combo"><div class="stat__v">${maxCombo}</div><div class="stat__l">MAX COMBO</div></div>
     </div>
+    <button class="result__rankbtn" id="rankBtn" type="button">🏆 查看本曲排行榜</button>
     <div class="result__actions">
       <button class="btn btn--ghost" id="shareBtn">分享海报</button>
       <button class="btn btn--ghost" id="homeBtn">选曲</button>
@@ -28,7 +27,8 @@ export function renderResult(root, result, { onRetry, onHome }) {
   `;
   el.querySelector("#retryBtn").addEventListener("click", onRetry);
   el.querySelector("#homeBtn").addEventListener("click", onHome);
-  el.querySelector("#shareBtn").addEventListener("click", () => sharePoster(root, result, accPct));
+  el.querySelector("#rankBtn").addEventListener("click", () => onLeaderboard && onLeaderboard(song));
+  el.querySelector("#shareBtn").addEventListener("click", () => sharePoster(root, result));
   root.appendChild(el);
 }
 
@@ -42,7 +42,7 @@ function updateBest(songId, score) {
 }
 
 // 生成分享海报
-function sharePoster(root, result, accPct) {
+function sharePoster(root, result) {
   const { song, score, rank, maxCombo, fullCombo } = result;
   const W = 720, H = 1280;
   const cv = document.createElement("canvas");
@@ -74,7 +74,7 @@ function sharePoster(root, result, accPct) {
   c.fillStyle = "#fff"; c.font = "900 120px system-ui, sans-serif";
   c.fillText(String(score).padStart(6, "0"), W / 2, 930);
   c.fillStyle = "rgba(243,240,255,0.6)"; c.font = "600 30px system-ui, sans-serif";
-  c.fillText(`准确率 ${accPct}%   最大连击 ${maxCombo}`, W / 2, 990);
+  c.fillText(`评级 ${rank}   最大连击 ${maxCombo}`, W / 2, 990);
   if (fullCombo) { c.fillStyle = "#ffd84d"; c.font = "800 40px system-ui, sans-serif"; c.fillText("✦ FULL COMBO ✦", W / 2, 1060); }
 
   c.fillStyle = "rgba(243,240,255,0.4)"; c.font = "500 24px system-ui, sans-serif";

@@ -1,5 +1,5 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785383297";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785384361";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
@@ -7,7 +7,7 @@ import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v
 // 每首歌自带一个小图标, 让选曲一眼能分清(日落/花海)
 const SONG_ICON = { sunset: "🌅", flower: "🌸" };
 
-export function renderHome(root, { songs, onStart, onCustom }) {
+export function renderHome(root, { songs, onStart, onCustom, onLeaderboard }) {
   const list = songs && songs.length ? songs : [{ id: "riluo", name: "日落大道", genre: "Sunset Drive", theme: "sunset" }];
   let sel = 0;                                   // 选中的歌(决定音乐 + 谱面 + 进场主题)
 
@@ -17,6 +17,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
     <div class="cover">
       <img class="cover__img" id="coverImg" src="./assets/bg/cover.jpg" alt="一拍即合 · 节拍切击" draggable="false" />
       <canvas class="cover__fx" id="coverFx"></canvas>
+      <button class="cover__rankbtn" id="rankBtn" type="button">🏆 排行榜</button>
       <button class="cover__pickbtn" id="songBtn"></button>
       <button class="hot hot--play" id="startBtn" aria-label="开始"></button>
     </div>
@@ -54,6 +55,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   function closeSheet() { sheet.hidden = true; }
 
   songBtn.addEventListener("click", openSheet);
+  el.querySelector("#rankBtn").addEventListener("click", () => onLeaderboard && onLeaderboard(list[sel]));
   el.querySelector("#sheetClose").addEventListener("click", closeSheet);
   sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
 

@@ -2,8 +2,8 @@
 //   世界1 音符跳跃(单键上跳·全民K歌红鸟)  1-1 1-2 1-3
 //   世界2 敲击工坊(多轨敲钉·酷狗蓝狗)      2-1 2-2 2-3
 //   世界3 节奏切割(滑动切音符·QQ企鹅)      3-1 3-2 3-3
-import { TRACKS } from "./tracks.js?v=1785383297";
-import { getIP } from "./ip.js?v=1785383297";
+import { TRACKS } from "./tracks.js?v=1785384361";
+import { getIP } from "./ip.js?v=1785384361";
 
 // 世界顺序(玩法由易到难: 单点 -> 多轨 -> 滑切)
 const WORLD_ORDER = ["jump", "workshop", "cut"];
@@ -47,7 +47,7 @@ export function getProgress() {
 function saveProgress(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
 
 export function rankStars(rank) {
-  return rank === "S" ? 3 : rank === "A" ? 2 : (rank === "B" || rank === "C") ? 1 : 0;
+  return rank === "SSS" ? 3 : rank === "SS" ? 2 : rank === "S" ? 1 : 0;
 }
 
 export function recordClear(levelId, rank, score) {

@@ -1,19 +1,27 @@
 // 入口与屏幕路由: 标题(单入口) -> 关卡地图 -> 场景闯关 -> 结算
-import { getAudio, unlockAudio } from "./audio/context.js?v=1785383297";
-import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785383297";
-import { getIP, loadIPSprites } from "./data/ip.js?v=1785383297";
-import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785383297";
-import { createGame } from "./core/engine.js?v=1785383297";
-import { renderHome } from "./ui/levelselect.js?v=1785383297";
-import { renderResult } from "./ui/result.js?v=1785383297";
-import { generateBeatmap } from "./core/generator.js?v=1785383297";
-import { createMusicPlayer } from "./audio/synth.js?v=1785383297";
-import { createBufferPlayer } from "./audio/decoded.js?v=1785383297";
+import { getAudio, unlockAudio } from "./audio/context.js?v=1785384361";
+import { TRACKS, compileTrack, sprinkleItems } from "./data/tracks.js?v=1785384361";
+import { getIP, loadIPSprites } from "./data/ip.js?v=1785384361";
+import { recordClear, getProgress, WORLDS } from "./data/levels.js?v=1785384361";
+import { createGame } from "./core/engine.js?v=1785384361";
+import { renderHome } from "./ui/levelselect.js?v=1785384361";
+import { renderResult } from "./ui/result.js?v=1785384361";
+import { showLeaderboard } from "./ui/leaderboard.js";
+import { recordLeaderboardScore } from "./data/leaderboard.js";
+import { generateBeatmap } from "./core/generator.js?v=1785384361";
+import { createMusicPlayer } from "./audio/synth.js?v=1785384361";
+import { createBufferPlayer } from "./audio/decoded.js?v=1785384361";
 
 loadIPSprites(); // 后台预载 IP 贴图(有则用, 无则回退矢量)
 
 const canvas = document.getElementById("gameCanvas");
 const screens = document.getElementById("screens");
+const gameControls = document.getElementById("gameControls");
+const pauseGameBtn = document.getElementById("pauseGameBtn");
+const exitGameBtn = document.getElementById("exitGameBtn");
+const pausePanel = document.getElementById("pausePanel");
+const resumeGameBtn = document.getElementById("resumeGameBtn");
+const pauseExitBtn = document.getElementById("pauseExitBtn");
 let game = null;
 let inputBound = false;
 let currentSong = null;                 // 当前选中的曲目(用于"再来一次"重开同一首)
@@ -51,6 +59,30 @@ tickClock(); setInterval(tickClock, 15000);
 
 function clearScreens() { screens.innerHTML = ""; }
 function showCanvas(show) { canvas.classList.toggle("hidden", !show); }
+function setGameControls(show) {
+  gameControls.classList.toggle("hidden", !show);
+  if (!show) setPauseUI(false);
+}
+function setPauseUI(paused) {
+  pausePanel.classList.toggle("hidden", !paused);
+  pauseGameBtn.textContent = paused ? "▶" : "Ⅱ";
+  pauseGameBtn.setAttribute("aria-label", paused ? "继续游戏" : "暂停游戏");
+  pauseGameBtn.title = paused ? "继续游戏" : "暂停游戏";
+}
+async function togglePause() {
+  if (!game) return;
+  const paused = await game.togglePause();
+  setPauseUI(paused);
+}
+function exitCurrentGame() {
+  if (!game) return;
+  goHome();
+}
+
+pauseGameBtn.addEventListener("click", togglePause);
+resumeGameBtn.addEventListener("click", togglePause);
+exitGameBtn.addEventListener("click", exitCurrentGame);
+pauseExitBtn.addEventListener("click", exitCurrentGame);
 
 function loading(text) {
   clearScreens();
@@ -63,13 +95,20 @@ function loading(text) {
 // ---------- 标题页(唯一入口: 单游戏"节拍切击") ----------
 function goHome() {
   if (game) { game.destroy(); game = null; }
+  setGameControls(false);
   showCanvas(false);
   clearScreens();
   renderHome(screens, {
     songs: SONGS,
     onStart: (song, theme) => playSelected(song, theme),
     onCustom: (file, theme) => startCustom(file, theme),
+    onLeaderboard: (song) => openLeaderboard(song),
   });
+}
+
+function openLeaderboard(selectedSong) {
+  const song = SONGS.find((item) => item.id === selectedSong?.id) || selectedSong || SONGS[0];
+  showLeaderboard(screens, { songs: SONGS, selectedSong: song });
 }
 
 // 选定歌曲进场: 歌管音乐/谱面, 皮肤(theme)由右上角单独选, 两者解绑
@@ -137,6 +176,7 @@ function launchBuffer(audioBuf, info, theme) {
 function launch(song, player, events, duration, meta) {
   clearScreens();
   showCanvas(true);
+  setGameControls(true);
   game = createGame(canvas, {
     song, player, events, duration, meta,
     onComplete: (result) => showResult(result),
@@ -149,8 +189,10 @@ function launch(song, player, events, duration, meta) {
 
 // ---------- 结算 ----------
 function showResult(result) {
+  setGameControls(false);
   showCanvas(false);
   clearScreens();
+  recordLeaderboardScore(result);
   // 记录通关星级 + 解锁下一小关
   if (result.song.levelId) recordClear(result.song.levelId, result.rank, result.score);
   renderResult(screens, result, {
@@ -159,6 +201,7 @@ function showResult(result) {
       goHome();
     },
     onHome: () => goHome(),
+    onLeaderboard: (song) => openLeaderboard(song),
   });
 }
 
@@ -174,6 +217,7 @@ function bindInput() {
   inputBound = true;
   window.addEventListener("keydown", (e) => {
     if (!game || e.repeat) return;
+    if (e.key === "Escape") { togglePause(); e.preventDefault(); return; }
     if (KEYS.has(e.key)) { game.key(e.key); e.preventDefault(); }
     // 自动演示仅通过 ?auto=1 开启, 不再绑定按键, 避免误触失去参与感
   });

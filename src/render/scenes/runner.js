@@ -1,7 +1,7 @@
 // 场景A · 跨栏闯关: 霓虹光环卡拍飞来, 点击让 IP 跳跃穿过(呼应节奏天国排队过环)
-import { COLORS, approachTime } from "../config.js?v=1785383297";
-import { hexA } from "../stage.js?v=1785383297";
-import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785383297";
+import { COLORS, approachTime } from "../config.js?v=1785384361";
+import { hexA } from "../stage.js?v=1785384361";
+import { drawHero, drawShadow, drawTapCue, clamp, lerp, easeOut } from "./base.js?v=1785384361";
 
 export function createRunner(stage, { ip, meta }) {
   const { geom } = stage;

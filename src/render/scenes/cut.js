@@ -2,15 +2,14 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785383297";
-import { hexA } from "../stage.js?v=1785383297";
-import { clamp, lerp } from "./base.js?v=1785383297";
+import { COLORS } from "../config.js?v=1785384361";
+import { hexA } from "../stage.js?v=1785384361";
+import { clamp, lerp } from "./base.js?v=1785384361";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
 const PALETTE = [PURPLE, BLUE, CYAN, PINK, VIOLET];
 const CUT = { perfect: 0.09, good: 0.22 };
-const MISS_AFTER = 0.26;
 const TRAIL_LIFE = 0.5;
 const FREEZE_DUR = 1.5;                             // 冰冻: 音符停止下落的秒数
 const ICE = "#bff4ff", RED = "#ff2d4d", ORANGE = "#ff8a3d";
@@ -23,6 +22,75 @@ const SPIKE = "#7a2fd6";                            // 带刺障碍(花海里替
 // 日落大道主题(切音符)暖色盘: 金/橙/琥珀/落日红
 const S_GOLD = "#ffd24d", S_ORANGE = "#ff9a3c", S_AMBER = "#ffb347", S_RED = "#ff5e3a";
 const S_PALETTE = [S_GOLD, S_ORANGE, S_AMBER, "#ffcf5c", S_RED];
+
+// 根据仓库内两首音频逐句识别得到的绝对时间轴：[开始秒, 结束秒, 歌词]。
+// 伴奏段不放歌词，避免用整曲百分比估算造成越唱越偏。
+const LYRICS = {
+  riluo: [
+    [15.10, 20.96, "总是梦见云层之上 飞过子午线"],
+    [22.54, 26.68, "分不清是黑夜还是白天"],
+    [30.30, 36.00, "带着装不下的期待 匆匆地赶来"],
+    [36.08, 41.72, "我再想一遍 想一遍"],
+    [44.26, 47.88, "我们寻找着在这条路的中间"],
+    [47.88, 51.66, "我们迷失着在这条路的两端"],
+    [51.66, 55.44, "每当黄昏阳光把所有都渲染"],
+    [55.44, 58.52, "你看那金黄多耀眼"],
+    [59.28, 62.92, "我们奔跑着在这条路的中间"],
+    [63.44, 66.66, "我们哭泣着在这条路的两端"],
+    [66.66, 70.46, "每当黄昏阳光把所有都渲染"],
+    [70.46, 74.16, "我看到夜的黑暗"],
+    [75.32, 80.56, "晚风吹过金色沙滩 海边的晚宴"],
+    [82.80, 86.70, "那种味道现在还不习惯"],
+    [90.32, 96.70, "拉斯维加斯往返的路上"],
+    [96.74, 102.52, "这里无人烟 无人烟"],
+    [104.26, 107.92, "我们寻找着在这条路的中间"],
+    [107.92, 111.66, "我们迷失着在这条路的两端"],
+    [111.66, 115.46, "每当黄昏阳光把所有都渲染"],
+    [115.46, 118.50, "你看那金黄多耀眼"],
+    [119.34, 122.94, "我们奔跑着在这条路的中间"],
+    [122.94, 126.76, "我们哭泣着在这条路的两端"],
+    [126.76, 130.42, "每当黄昏阳光把所有都渲染"],
+    [130.48, 133.92, "我看到夜的黑暗"],
+    [164.04, 171.80, "我们奔跑着在这条路的中间"],
+    [172.26, 178.80, "我们哭泣着在这条路的两端"],
+    [179.20, 185.60, "每当黄昏阳光把所有都渲染"],
+    [185.90, 190.30, "我看到夜的黑暗"],
+  ],
+  huahai: [
+    [28.80, 34.80, "静止了 所有的花开"],
+    [35.00, 41.70, "遥远了 清晰了爱"],
+    [41.86, 46.20, "天郁闷 爱却更喜欢"],
+    [46.20, 50.68, "那时候我不懂这叫爱"],
+    [51.86, 57.52, "你喜欢 站在那窗台"],
+    [58.52, 64.08, "你好久 都没再来"],
+    [64.08, 71.44, "彩色的时间染上空白"],
+    [71.44, 75.84, "是你流的泪晕开"],
+    [76.52, 82.54, "不要你离开 距离隔不开"],
+    [83.54, 88.86, "思念变成海 在窗外进不来"],
+    [89.54, 95.28, "原谅说太快 爱成了阻碍"],
+    [95.28, 101.84, "手中的风筝放太快 回不来"],
+    [102.54, 108.28, "不要你离开 回忆划不开"],
+    [108.28, 114.78, "欠你的宠爱 我在等待重来"],
+    [114.78, 121.28, "天空仍灿烂 它爱着大海"],
+    [121.28, 127.46, "情歌被打败 爱已不存在"],
+    [132.00, 138.00, "静止了 所有的花开"],
+    [138.00, 144.00, "遥远了 清晰了爱"],
+    [144.00, 149.00, "天郁闷 爱却更喜欢"],
+    [149.00, 153.90, "那时候我不懂这叫爱"],
+    [154.02, 159.84, "你喜欢 站在那窗台"],
+    [159.84, 166.50, "你好久 都没再来"],
+    [166.50, 173.40, "彩色的时间染上空白"],
+    [174.28, 178.16, "是你流的泪晕开"],
+    [179.32, 184.96, "不要你离开 距离隔不开"],
+    [184.96, 191.26, "思念变成海 在窗外进不来"],
+    [191.26, 197.72, "原谅说太快 爱成了阻碍"],
+    [197.72, 204.04, "手中的风筝放太快 回不来"],
+    [204.04, 210.78, "不要你离开 回忆划不开"],
+    [210.78, 216.82, "欠你的宠爱 我在等待重来"],
+    [216.82, 224.04, "天空仍灿烂 它爱着大海"],
+    [224.04, 232.14, "情歌被打败 爱已不存在"],
+  ],
+};
 
 // 企鹅吉祥物贴图(抠图立绘), 加载完成前回退为发光徽章
 let PENG = null;
@@ -83,7 +151,12 @@ export function createCut(stage, game) {
   const NT = () => game.t - freezeOff;               // 音符时间线(冰冻期间停住), 视觉/刀光仍用 game.t
   let pengPulse = 0, pengMood = 1;
   let lastDecor = -999;
+  let strokeId = 0, activeStroke = 0;
+  let strokePoints = [];
   const decor = [];                                  // 背景飞舞装饰水晶(可被顺带切碎, 不计分)
+  const rushNotes = [];                              // 高潮音符喷泉: 可无限爽切, 不计 MISS
+  let lastRushSpawn = -999, rushSeq = 0, rushCombo = 0, lastRushHit = -999;
+  let activeRushWindow = -1, rushBannerT = -999;
 
   // 满屏钻石碎屑(缓慢漂移 + 闪烁)
   const confetti = [];
@@ -109,12 +182,34 @@ export function createCut(stage, game) {
     { xf: 0.88, yf: 0.58, col: GREEN, ph: 3.3, r: 13 },
   ];
 
+  // 把连续散点重新编排成“歌词短句”: 同组音符同时飞入并排成一条可一笔切完的轨迹。
+  // 高潮区间使用 V 字队形, 玩家从左上滑到谷底再滑向右上即可清掉整句。
+  const phrases = buildPhrases(chart, game.duration);
+
   chart.forEach((n, i) => {
-    n._launch = n.time - RISE;
-    n._apexYf = 0.22 + (i % 5) * 0.05;
-    const dir = i % 2 === 0 ? 1 : -1;
-    n._x0f = clamp(0.5 + dir * (0.10 + (i % 4) * 0.09), 0.10, 0.90);
-    n._x1f = clamp(n._x0f + dir * (0.16 + (i % 3) * 0.08), 0.06, 0.94);
+    n._hitTime = n._phrase ? n._phrase.time : n.time;
+    n._launch = n._hitTime - RISE;
+    if (n._phrase) {
+      const phrase = n._phrase;
+      const divisor = isClosedGesture(phrase.pattern) ? phrase.size : phrase.size - 1;
+      const u0 = phrase.size <= 1 ? 0.5 : n._phraseIndex / divisor;
+      const u = phrase.reverse ? 1 - u0 : u0;
+      const point = gesturePoint(phrase.pattern, u, n._phraseIndex, phrase.size, phrase.phase);
+      const drift = phrase.reverse ? -0.035 : 0.035;
+      n._apexYf = point.y;
+      n._x0f = clamp(point.x - drift, 0.07, 0.93);
+      n._x1f = clamp(point.x + drift, 0.07, 0.93);
+    } else if (n.item) {
+      const side = i % 2 === 0 ? 0.10 : 0.90;
+      n._apexYf = 0.48 + (i % 3) * 0.06;
+      n._x0f = side;
+      n._x1f = side + (side < 0.5 ? 0.07 : -0.07);
+    } else {
+      n._apexYf = 0.22 + (i % 5) * 0.05;
+      const dir = i % 2 === 0 ? 1 : -1;
+      n._x0f = clamp(0.5 + dir * (0.10 + (i % 4) * 0.09), 0.10, 0.90);
+      n._x1f = clamp(n._x0f + dir * (0.16 + (i % 3) * 0.08), 0.06, 0.94);
+    }
     n._gold = !n.item && i % 7 === 3;
     n._col = n.item ? (n.item === "bomb" ? RED : n.item === "bonus" ? GOLD : n.item === "gift" ? (flower ? F_PINK : GOLD) : CYAN)
                     : (n._gold ? GOLD : PAL[i % PAL.length]);
@@ -150,8 +245,15 @@ export function createCut(stage, game) {
       if (p.el < 0) break;                             // 后面的音符更晚, 都还没起飞 => 结束扫描
       if (p.y > geom.H * 1.12) continue;               // 已掉出屏幕
       if (segDist(p.x, p.y, ax, ay, bx, by) <= noteRadius(n)) {
-        resolveHit(n, Math.abs(t - n.time) <= CUT.perfect ? "perfect" : "good", ang);
+        n._stroke = activeStroke;
+        resolveHit(n, Math.abs(t - n._hitTime) <= CUT.perfect ? "perfect" : "good", ang);
       }
+    }
+    for (const n of rushNotes) {
+      if (n._done) continue;
+      const p = rushPos(n, game.t);
+      if (p.age < 0 || p.age > 2.4) continue;
+      if (segDist(p.x, p.y, ax, ay, bx, by) <= n.r + 19) resolveRushHit(n, p.x, p.y, ang);
     }
     for (const d of decor) {
       if (d._cut) continue;
@@ -173,7 +275,7 @@ export function createCut(stage, game) {
       const p = notePos(n, t);
       if (p.el < 0) break;                             // 还没出现, 后面更晚 => 结束
       if (p.y > geom.H * 1.12) continue;               // 已掉出屏幕
-      const dt = Math.abs(t - n.time);
+      const dt = Math.abs(t - n._hitTime);
       if (dt < bestDt) { bestDt = dt; best = n; }
     }
     if (best) {
@@ -191,9 +293,17 @@ export function createCut(stage, game) {
   function pointer(type, x, y) {
     if (giftPaused) return;                          // 礼物弹窗期间不接受切割
     const t = game.t;
-    if (type === "down") { trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; bladeAcc = 0; sliceSeg(x - 1, y, x + 1, y); return; }
+    if (type === "down") {
+      trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; bladeAcc = 0;
+      activeStroke = ++strokeId;
+      strokePoints = [{ x, y }];
+      sliceSeg(x - 1, y, x + 1, y);
+      return;
+    }
     if (type === "move") {
       const p = prevPt || { x, y };
+      strokePoints.push({ x, y });
+      if (strokePoints.length > 80) strokePoints.shift();
       sliceSeg(p.x, p.y, x, y);
       // 沿刀锋掉落细碎屑: 每挥过一小段距离掉 1 粒(节流, 不刷爆粒子池)
       bladeAcc += Math.hypot(x - p.x, y - p.y);
@@ -205,7 +315,7 @@ export function createCut(stage, game) {
       prevPt = { x, y };
       return;
     }
-    if (type === "up") { prevPt = null; }
+    if (type === "up") { prevPt = null; activeStroke = 0; strokePoints = []; }
   }
 
   function synthBlade(x, y, ang) {
@@ -255,6 +365,25 @@ export function createCut(stage, game) {
       if (fever >= 1) { feverT = t + 6.5; fever = 1; feverFlashT = t; stage.flash(GOLD, 0.22); stage.shakeBy(8); }
     }
     if (feverOn()) { stage.fx.spawnBurst(x, y, GOLD, 8, 1.6); stage.fx.spawnShards(x, y, PINK, 5, 1.4); }
+    checkPhraseClear(n._phrase);
+  }
+
+  function checkPhraseClear(phrase) {
+    if (!phrase || phrase.cleared || !phrase.notes.every((n) => n._done)) return;
+    phrase.cleared = true;
+    const oneStroke = phrase.notes.every((n) => n._stroke && n._stroke === phrase.notes[0]._stroke);
+    const vGesture = phrase.pattern === "v" && oneStroke && isVGesture(strokePoints, geom.W, geom.H);
+    const hardPattern = ["heart", "petal", "infinity"].includes(phrase.pattern);
+    const bonus = vGesture ? 650 : oneStroke ? (hardPattern ? 460 : 360) : 120;
+    game.addScore(bonus);
+    const text = vGesture ? `V-SLASH ×${phrase.size}` : oneStroke ? `${phrase.name} 一笔完成 ×${phrase.size}` : `短句连切 ×${phrase.size}`;
+    const col = vGesture ? GOLD : (flower ? F_PINK : sunset ? S_ORANGE : CYAN);
+    stage.fx.spawnPop(geom.W / 2, geom.H * 0.29, text, col, { size: vGesture ? 34 : 27, rise: 0.8, decay: 0.025 });
+    stage.fx.spawnPop(geom.W / 2, geom.H * 0.34, `+${bonus}`, "#ffffff", { size: 18, rise: 0.8, decay: 0.035 });
+    stage.fx.spawnRing(geom.W / 2, geom.H * 0.46, col, vGesture ? 3 : 2);
+    stage.flash(col, vGesture ? 0.22 : 0.12);
+    stage.shakeBy(vGesture ? 10 : 6);
+    if (navigator.vibrate) navigator.vibrate(vGesture ? [22, 20, 32] : 18);
   }
 
   // 隐藏道具命中: 炸弹扣分断连 / 加速加分 / 冰冻加分并暂停下落(均不计入判定统计)
@@ -318,7 +447,7 @@ export function createCut(stage, game) {
     game.pause();
     if (sunsetBg) sunsetBg.pause();
     if (flowerBg) flowerBg.pause();
-    const src = (flower ? "./assets/gift/original/huahai_gift_full.png" : "./assets/gift/original/riluo_gift_full.png") + "?v=1785383297";
+    const src = (flower ? "./assets/gift/original/huahai_gift_full.png" : "./assets/gift/original/riluo_gift_full.png") + "?v=1785384361";
     const glow = flower ? "rgba(255,95,174,.65)" : "rgba(255,158,60,.65)";
     const mask = document.createElement("div");
     giftMask = mask;
@@ -345,6 +474,73 @@ export function createCut(stage, game) {
 
   function triggerFreeze() { freezeUntil = game.t + FREEZE_DUR; freezeFlashT = game.t; }
 
+  function rushWindowAt(t) {
+    if (!game.duration || t < 0) return -1;
+    const p = t / game.duration;
+    if (p >= 0.43 && p <= 0.54) return 0;
+    if (p >= 0.78 && p <= 0.90) return 1;
+    return -1;
+  }
+
+  function spawnRushBatch(t) {
+    const count = 2 + (rushSeq % 3 === 0 ? 1 : 0);
+    for (let i = 0; i < count; i++) {
+      const seed = rushSeq * 3 + i;
+      const spread = count <= 1 ? 0 : i / (count - 1) - 0.5;
+      const wobble = Math.sin(seed * 2.37) * 0.16;
+      const col = seed % 6 === 0 ? GOLD : PAL[seed % PAL.length];
+      rushNotes.push({
+        t0: t, x0: geom.W * (0.5 + wobble * 0.18), y0: geom.H * 0.82,
+        vx: geom.W * (spread * 0.62 + wobble),
+        vy: -geom.H * (0.58 + (seed % 5) * 0.055),
+        gravity: geom.H * (0.46 + (seed % 3) * 0.035),
+        r: 17 + (seed % 4) * 2.5,
+        _gold: seed % 8 === 0, _col: col, _shape: seed % 3,
+        _bob: seed * 0.73, _spec: seed * 1.17,
+        time: t + 0.42, _done: false,
+      });
+    }
+    rushSeq++;
+  }
+
+  function rushPos(n, t) {
+    const age = t - n.t0;
+    return {
+      x: n.x0 + n.vx * age,
+      y: n.y0 + n.vy * age + 0.5 * n.gravity * age * age,
+      age,
+    };
+  }
+
+  function resolveRushHit(n, x, y, ang) {
+    const t = game.t;
+    n._done = true;
+    rushCombo = t - lastRushHit <= 0.75 ? rushCombo + 1 : 1;
+    lastRushHit = t;
+    const stepBonus = 35 + Math.min(40, Math.floor(rushCombo / 10) * 5);
+    game.addScore(stepBonus);
+    if (!feverOn()) {
+      fever = clamp(fever + 0.012, 0, 1);
+      if (fever >= 1) {
+        feverT = t + 6.5; fever = 1; feverFlashT = t;
+        stage.flash(GOLD, 0.22); stage.shakeBy(8);
+      }
+    }
+    stage.fx.spawnHalves(x, y, n._col, ang, n.r);
+    stage.fx.spawnShards(x, y, n._col, n._gold ? 10 : 6, n._gold ? 1.8 : 1.3);
+    stage.fx.spawnBurst(x, y, n._gold ? GOLD : n._col, n._gold ? 8 : 4, 1.35);
+    if (n._gold) stage.fx.spawnRing(x, y, GOLD, 1.5);
+    if (rushCombo % 10 === 0) {
+      const milestone = 100 + rushCombo * 2;
+      game.addScore(milestone);
+      stage.fx.spawnPop(geom.W / 2, geom.H * 0.30, `RUSH ×${rushCombo}`, GOLD, { size: 32, rise: 0.75, decay: 0.025 });
+      stage.fx.spawnPop(geom.W / 2, geom.H * 0.345, `+${milestone}`, "#ffffff", { size: 17, rise: 0.75, decay: 0.035 });
+      stage.flash(GOLD, 0.13); stage.shakeBy(6);
+    } else {
+      stage.shakeBy(1.5);
+    }
+  }
+
   // ---------- 自动演示 ----------
   function auto() {
     const t = NT();
@@ -352,15 +548,27 @@ export function createCut(stage, game) {
       const n = chart[i];
       if (n._done) continue;
       if (n.item === "bomb") continue;               // 自动演示: 主动躲开炸弹
-      if (t >= n.time) {
+      if (t >= n._hitTime) {
         const p = notePos(n, t);
         if (autoPt) { for (let k = 1; k <= 3; k++) trail.push({ x: lerp(autoPt.x, p.x, k / 3), y: lerp(autoPt.y, p.y, k / 3), t }); }
         else trail.push({ x: p.x, y: p.y, t });
         if (trail.length > 22) trail.splice(0, trail.length - 22);
         const ang = autoPt ? Math.atan2(p.y - autoPt.y, p.x - autoPt.x) : -0.6;
         autoPt = { x: p.x, y: p.y };
-        resolveHit(n, Math.abs(t - n.time) <= CUT.perfect ? "perfect" : "good", ang);
+        n._stroke = 100000 + (n._phrase ? n._phrase.id : i);
+        resolveHit(n, Math.abs(t - n._hitTime) <= CUT.perfect ? "perfect" : "good", ang);
       }
+    }
+    for (const n of rushNotes) {
+      if (n._done || t - n.t0 < 0.22) continue;
+      const p = rushPos(n, t);
+      if (p.age > 2.2) continue;
+      const ang = autoPt ? Math.atan2(p.y - autoPt.y, p.x - autoPt.x) : -0.7;
+      if (autoPt) trail.push({ x: autoPt.x, y: autoPt.y, t });
+      trail.push({ x: p.x, y: p.y, t });
+      if (trail.length > 22) trail.splice(0, trail.length - 22);
+      autoPt = { x: p.x, y: p.y };
+      resolveRushHit(n, p.x, p.y, ang);
     }
   }
 
@@ -373,17 +581,37 @@ export function createCut(stage, game) {
     else if (freezeOff > 0) freezeOff = Math.max(0, freezeOff - dt * 0.6);
     lastFrameT = t;
     const nt = NT();
+    const rushWindow = rushWindowAt(t);
+    if (rushWindow >= 0) {
+      if (rushWindow !== activeRushWindow) {
+        activeRushWindow = rushWindow; rushBannerT = t; rushCombo = 0;
+        stage.flash(GOLD, 0.16); stage.shakeBy(7);
+      }
+      if (t - lastRushSpawn >= 0.15) {
+        lastRushSpawn = t;
+        spawnRushBatch(t);
+      }
+    } else if (activeRushWindow >= 0) {
+      activeRushWindow = -1;
+      rushCombo = 0;
+    }
+    if (t - lastRushHit > 0.75) rushCombo = 0;
+    for (let i = rushNotes.length - 1; i >= 0; i--) {
+      const p = rushPos(rushNotes[i], t);
+      if (rushNotes[i]._done || p.age > 2.4 || p.x < -80 || p.x > geom.W + 80 || p.y > geom.H + 80) rushNotes.splice(i, 1);
+    }
 
     while (firstActive < chart.length) {
       const n = chart[firstActive];
       if (n._done) { firstActive++; continue; }
-      if (nt - n.time > MISS_AFTER) {
+      const p = notePos(n, nt);
+      const leftPlayfield = p.el > 2 * RISE || (p.el > RISE && p.y > geom.H * 1.12);
+      if (leftPlayfield) {
         if (n.item) { n._done = true; firstActive++; continue; } // 漏掉道具无惩罚(躲炸弹是对的)
         n._done = true; n._judge = "miss"; recent = { t, j: "miss" };
         game.judge("miss", { silent: true });
         pengMood = -1;
         if (t - lastPopT > 0.12) {
-          const p = notePos(n, nt);
           stage.fx.spawnPop(p.x, p.y, "MISS", COLORS.miss, { size: 20, rise: 0.9, decay: 0.05 });
           lastPopT = t;
         }
@@ -432,6 +660,8 @@ export function createCut(stage, game) {
     drawDecor(c, t);
 
     const ntNow = t - freezeOff;
+    drawPhraseGuides(c, ntNow, t);
+    drawRushNotes(c, t);
     for (let i = firstActive; i < chart.length; i++) {
       const n = chart[i];
       if (n._done) continue;
@@ -445,6 +675,8 @@ export function createCut(stage, game) {
 
     drawBlade(c, t, fv);
     drawWeapon(c, t, fv);
+    drawRushHud(c, t);
+    drawLyrics(c, t);
 
     if (feverFlashT >= 0 && t - feverFlashT < 1.0) {
       const k = (t - feverFlashT) / 1.0;
@@ -459,6 +691,114 @@ export function createCut(stage, game) {
     if (freezeUntil > 0 && t < freezeUntil) drawFreezeOverlay(c, t);
     drawFeverPill(c, t, fv);
     if (t < 5.5 && !recent) drawHint(c, t);
+  }
+
+  function drawRushNotes(c, t) {
+    for (const n of rushNotes) {
+      if (n._done) continue;
+      const p = rushPos(n, t);
+      if (p.age < 0 || p.age > 2.4 || p.x < -50 || p.x > geom.W + 50 || p.y < -50 || p.y > geom.H + 50) continue;
+      c.save();
+      c.globalAlpha = clamp(p.age / 0.12, 0, 1);
+      c.translate(p.x, p.y);
+      c.rotate(p.age * (n.vx >= 0 ? 1.8 : -1.8) + n._spec);
+      const pulse = n.r * (1 + Math.sin(t * 7 + n._bob) * 0.07);
+      if (flower) flowerShape(c, n._shape, pulse, n._col, t, n._spec);
+      else drawShape(c, n._shape, pulse, n._col, t, n._spec, true);
+      c.restore();
+    }
+  }
+
+  function drawRushHud(c, t) {
+    if (activeRushWindow < 0) return;
+    const intro = clamp((t - rushBannerT) / 0.35, 0, 1);
+    const pulse = 0.5 + Math.sin(t * 6) * 0.5;
+    c.save();
+    c.globalAlpha = intro;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillStyle = "#fff3ae"; c.shadowColor = GOLD; c.shadowBlur = 18 + pulse * 10;
+    c.font = "900 24px system-ui";
+    c.fillText("CHORUS RUSH", geom.W / 2, geom.H * 0.22);
+    c.font = "800 13px system-ui"; c.fillStyle = "#ffffff"; c.shadowBlur = 9;
+    c.fillText(rushCombo > 0 ? `连续爽切 ×${rushCombo}` : "音符喷泉 · 尽情挥刀！", geom.W / 2, geom.H * 0.255);
+    c.restore();
+  }
+
+  function drawLyrics(c, t) {
+    const lines = LYRICS[game.song.id];
+    if (!lines || !lines.length || t < 0) return;
+    const index = lines.findIndex((line) => t >= line[0] && t <= line[1]);
+    if (index < 0) return;                            // 前奏/间奏/尾奏保持干净，不挂上一句
+    const [start, end, text] = lines[index];
+    const lineProgress = clamp((t - start) / Math.max(0.001, end - start), 0, 1);
+    const edgeFade = Math.min(clamp((t - start) / 0.18, 0, 1), clamp((end - t) / 0.18, 0, 1));
+    const nextLine = lines[index + 1];
+    const next = nextLine && nextLine[0] - end < 1.2 ? nextLine[2] : "";
+    const cx = geom.W / 2, y = 130;                  // HUD 进度条底部约 106px，歌词紧跟其下
+
+    c.save();
+    c.globalAlpha = 0.92 * edgeFade;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = "900 17px system-ui";
+    c.fillStyle = "rgba(255,255,255,0.68)";
+    c.shadowColor = "rgba(0,0,0,0.95)"; c.shadowBlur = 10;
+    c.fillText(text, cx, y);
+
+    const textWidth = c.measureText(text).width;
+    c.save();
+    c.beginPath();
+    c.rect(cx - textWidth / 2 - 3, y - 15, (textWidth + 6) * lineProgress, 30);
+    c.clip();
+    c.fillStyle = flower ? "#ffd1e6" : "#fff0a5";
+    c.shadowColor = flower ? F_PINK : GOLD; c.shadowBlur = 12;
+    c.fillText(text, cx, y);
+    c.restore();
+
+    if (next) {
+      c.font = "700 11px system-ui";
+      c.fillStyle = "rgba(255,255,255,0.48)";
+      c.shadowColor = "rgba(0,0,0,0.95)"; c.shadowBlur = 7;
+      c.fillText(next, cx, y + 22);
+    }
+    c.restore();
+  }
+
+  function drawPhraseGuides(c, nt, t) {
+    for (const phrase of phrases) {
+      if (phrase.cleared) continue;
+      const points = phrase.notes
+        .filter((n) => !n._done)
+        .map((n) => notePos(n, nt))
+        .filter((p) => p.el >= 0 && p.el <= 2 * RISE && p.y <= geom.H * 1.1);
+      if (points.length < 2) continue;
+      const closeness = 1 - clamp(Math.abs(nt - phrase.time) / RISE, 0, 1);
+      const col = phrase.climax ? GOLD : (flower ? F_PINK : sunset ? S_ORANGE : CYAN);
+      c.save();
+      c.globalCompositeOperation = "lighter";
+      c.globalAlpha = 0.22 + closeness * 0.38;
+      c.strokeStyle = col;
+      c.shadowColor = col;
+      c.shadowBlur = phrase.climax ? 18 : 10;
+      c.lineWidth = phrase.climax ? 5 : 3;
+      c.setLineDash([10, 9]);
+      c.beginPath();
+      points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
+      if (isClosedGesture(phrase.pattern)) c.closePath();
+      c.stroke();
+      c.setLineDash([]);
+      if (closeness > 0.28) {
+        const topY = Math.min(...points.map((p) => p.y)) - 42;
+        c.globalCompositeOperation = "source-over";
+        c.globalAlpha = clamp((closeness - 0.28) * 1.4, 0, 0.95);
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.font = phrase.climax ? "900 20px system-ui" : "800 15px system-ui";
+        c.fillStyle = phrase.climax ? "#fff4b0" : "#ffffff";
+        c.shadowColor = col; c.shadowBlur = 12;
+        const prefix = phrase.climax ? "高潮 · " : "";
+        c.fillText(`${prefix}${phrase.name} ×${phrase.size} · 一笔描图加分`, geom.W / 2, Math.max(92, topY));
+      }
+      c.restore();
+    }
   }
 
   // 冰冻全屏罩: 冰蓝渐晕 + 顶部 ❄ 横幅(提示"音符已冻结")
@@ -1125,7 +1465,7 @@ export function createCut(stage, game) {
     roundRectPath(c, x, y, w, h, 20); c.fill(); c.stroke();
     c.globalAlpha = 0.85 + Math.sin(t * 4) * 0.12;
     c.fillStyle = "#eaf2ff"; c.font = "800 15px system-ui"; c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillText(flower ? "滑动屏幕 · 挥刀切开飞舞的花朵" : "滑动屏幕 · 挥刀切开飞出的音符", geom.W / 2, y + h / 2);
+    c.fillText(flower ? "花朵成句连切 · 高潮随便切，画 V 加分" : "音符成句连切 · 高潮随便切，画 V 加分", geom.W / 2, y + h / 2);
     c.restore();
   }
 
@@ -1138,6 +1478,110 @@ export function createCut(stage, game) {
 }
 
 // ---- 多边形/线段工具 ----
+const GESTURES = [
+  { id: "wave", name: "波浪" },
+  { id: "v", name: "V 手势" },
+  { id: "heart", name: "爱心" },
+  { id: "petal", name: "花瓣" },
+  { id: "zigzag", name: "闪电折线" },
+  { id: "circle", name: "圆环" },
+  { id: "infinity", name: "无限符号" },
+  { id: "crown", name: "皇冠" },
+];
+const GESTURE_SIZES = { wave: 7, v: 7, heart: 10, petal: 11, zigzag: 8, circle: 10, infinity: 10, crown: 7 };
+function isClosedGesture(pattern) { return ["heart", "petal", "circle", "infinity"].includes(pattern); }
+
+function buildPhrases(chart, duration) {
+  const notes = chart.filter((n) => !n.item);
+  const phrases = [];
+  let cursor = 0;
+  while (cursor < notes.length) {
+    const progress = duration > 0 ? notes[cursor].time / duration : 0;
+    const climax = (progress >= 0.38 && progress <= 0.57) || (progress >= 0.70 && progress <= 0.91);
+    const baseGesture = GESTURES[phrases.length % GESTURES.length];
+    const climaxIds = ["v", "crown", "heart"];
+    const gestureId = climax ? climaxIds[phrases.length % climaxIds.length] : baseGesture.id;
+    const gesture = GESTURES.find((g) => g.id === gestureId) || baseGesture;
+    const targetSize = GESTURE_SIZES[gesture.id] || 8;
+    let size = Math.min(targetSize, notes.length - cursor);
+    const remain = notes.length - cursor - size;
+    if (remain > 0 && remain < 3) size += remain;
+    const group = notes.slice(cursor, cursor + size);
+    const time = group.reduce((sum, n) => sum + n.time, 0) / group.length;
+    const id = phrases.length;
+    const phrase = {
+      id,
+      time,
+      notes: group,
+      size: group.length,
+      pattern: gesture.id,
+      name: gesture.name,
+      climax,
+      reverse: id % 2 === 1,
+      phase: id * 1.7,
+      cleared: false,
+    };
+    group.forEach((n, index) => {
+      n._phrase = phrase;
+      n._phraseIndex = index;
+    });
+    phrases.push(phrase);
+    cursor += size;
+  }
+  return phrases;
+}
+
+function gesturePoint(pattern, u, index, size, phase) {
+  const theta = Math.PI * 2 * u;
+  if (pattern === "v") {
+    return { x: 0.16 + u * 0.68, y: 0.27 + (1 - Math.abs(u * 2 - 1)) * 0.31 };
+  }
+  if (pattern === "heart") {
+    const a = theta;
+    const hx = 16 * Math.pow(Math.sin(a), 3) / 18;
+    const hy = (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) / 17;
+    return { x: 0.5 + hx * 0.29, y: 0.43 - hy * 0.20 };
+  }
+  if (pattern === "petal") {
+    const r = 0.075 + 0.19 * Math.abs(Math.cos(theta * 2.5));
+    return { x: 0.5 + Math.cos(theta - Math.PI / 2) * r, y: 0.43 + Math.sin(theta - Math.PI / 2) * r * 0.78 };
+  }
+  if (pattern === "zigzag") {
+    const tooth = index % 2 === 0 ? 0.29 : 0.55;
+    return { x: 0.15 + u * 0.70, y: tooth };
+  }
+  if (pattern === "circle") {
+    const a = theta - Math.PI / 2;
+    return { x: 0.5 + Math.cos(a) * 0.29, y: 0.42 + Math.sin(a) * 0.19 };
+  }
+  if (pattern === "infinity") {
+    return { x: 0.5 + Math.sin(theta) * 0.31, y: 0.42 + Math.sin(theta * 2) * 0.14 };
+  }
+  if (pattern === "crown") {
+    const crownY = [0.56, 0.31, 0.50, 0.24, 0.50, 0.31, 0.56];
+    const y = crownY[Math.round(u * (crownY.length - 1))];
+    return { x: 0.16 + u * 0.68, y };
+  }
+  return { x: 0.16 + u * 0.68, y: 0.40 + Math.sin(theta + phase) * 0.105 };
+}
+
+function isVGesture(points, W, H) {
+  if (!points || points.length < 5) return false;
+  let maxY = -Infinity, valley = -1, minX = Infinity, maxX = -Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.y > maxY) { maxY = p.y; valley = i; }       // 屏幕坐标 y 越大越靠下, 即 V 的谷底
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+  }
+  if (valley < Math.floor(points.length * 0.2) || valley > Math.ceil(points.length * 0.8)) return false;
+  const start = points[0], end = points[points.length - 1], bottom = points[valley];
+  const depth = Math.min(bottom.y - start.y, bottom.y - end.y);
+  const wideEnough = maxX - minX >= W * 0.28;
+  const deepEnough = depth >= H * 0.10;
+  const turnsAtBottom = (bottom.x - start.x) * (end.x - bottom.x) > 0;
+  return wideEnough && deepEnough && turnsAtBottom;
+}
+
 function poly(c, pts, fill, glow, blur) {
   c.save();
   c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath();

@@ -6,20 +6,20 @@
 //   tap(x, y)              单键/单击动作(音符跳跃)
 //   laneTap(lane)          多轨动作(敲击工坊); mode.lanes 声明轨数
 //   pointer(type, x, y)    指针滑动(节奏切割), type: down/move/up
-import { getAudio } from "../audio/context.js?v=1785383297";
-import { createConductor } from "./conductor.js?v=1785383297";
-import { createScorer } from "./judge.js?v=1785383297";
-import { playHitSfx } from "../audio/synth.js?v=1785383297";
-import { createStage } from "../render/stage.js?v=1785383297";
-import { createScene } from "../render/scenes/index.js?v=1785383297";
-import { approachTime } from "../render/config.js?v=1785383297";
+import { getAudio } from "../audio/context.js?v=1785384361";
+import { createConductor } from "./conductor.js?v=1785384361";
+import { createScorer } from "./judge.js?v=1785384361";
+import { playHitSfx } from "../audio/synth.js?v=1785384361";
+import { createStage } from "../render/stage.js?v=1785384361";
+import { createScene } from "../render/scenes/index.js?v=1785384361";
+import { approachTime } from "../render/config.js?v=1785384361";
 
 const LEAD_IN = 3.0;
 const LANE_KEYS = { d: 0, f: 1, j: 2, k: 3, D: 0, F: 1, J: 2, K: 3 };
 const TAP_KEYS = new Set([" ", "f", "j", "F", "J", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 
 export function createGame(canvas, { song, player, events, duration, meta, onComplete }) {
-  const { bands } = getAudio();
+  const { bands, ctx } = getAudio();
   const conductor = createConductor();
   const stage = createStage(canvas, { song });
   const approach = approachTime(meta.beatDur);
@@ -56,6 +56,14 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
   function resize() { stage.resize(); }
   function setAutoplay(v) { autoplay = v; }
   function toggleAutoplay() { autoplay = !autoplay; return autoplay; }
+  async function setPaused(next) {
+    if (finished || paused === next) return paused;
+    paused = next;
+    if (paused) await ctx.suspend();
+    else await ctx.resume();
+    return paused;
+  }
+  function togglePause() { return setPaused(!paused); }
 
   function start() {
     stage.resize();
@@ -66,14 +74,14 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
   }
 
   // ---- 输入分发 ----
-  function action(x, y) { if (!finished) mode.tap && mode.tap(x, y); }
+  function action(x, y) { if (!finished && !paused) mode.tap && mode.tap(x, y); }
   function key(k) {
-    if (finished) return;
+    if (finished || paused) return;
     if (mode.laneTap && k in LANE_KEYS) { mode.laneTap(LANE_KEYS[k]); return; }
     if (TAP_KEYS.has(k)) mode.tap && mode.tap();
   }
   function pointer(type, x, y) {
-    if (finished) return;
+    if (finished || paused) return;
     if (mode.pointer) { mode.pointer(type, x, y); return; }
     if (type === "down") mode.tap && mode.tap(x, y);
   }
@@ -120,7 +128,7 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
     const world = {
       t, bands: b, scorer, bpm: meta.bpm, best: song.best || 0,
       levelLabel: song.levelLabel, sceneName: song.sceneName,
-      duration, progress: duration ? t / duration : 0,
+      duration, progress: duration ? t / duration : 0, rankProgress: scorer.rankProgress,
       approach, W: stage.width, H: stage.height, ctx: canvas.getContext("2d"),
       countText, countAlpha, floor: mode.floor !== false,
     };
@@ -138,7 +146,7 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
       onComplete({
         song, score: scorer.score, rank: scorer.rank(),
         maxCombo: scorer.maxCombo, counts: { ...scorer.counts },
-        accuracy: scorer.accuracy(), fullCombo: scorer.isFullCombo(),
+        fullCombo: scorer.isFullCombo(),
       });
       return;
     }
@@ -148,10 +156,14 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
   function destroy() {
     finished = true;
     cancelAnimationFrame(raf);
-    if (paused) { paused = false; try { getAudio().ctx.resume(); } catch (e) {} }  // 别把 ctx 留在暂停态给下一局
     player.stop();
+    if (paused) { paused = false; ctx.resume().catch(() => {}); }
     mode.destroy && mode.destroy();
   }
 
-  return { start, resize, destroy, setAutoplay, toggleAutoplay, action, key, pointer };
+  return {
+    start, resize, destroy, setAutoplay, toggleAutoplay, action, key, pointer,
+    setPaused, togglePause,
+    get paused() { return paused; },
+  };
 }

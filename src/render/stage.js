@@ -1,7 +1,7 @@
 // 共享舞台: 背景 / 霓虹透视地板 / 演唱会灯光 / HUD / 倒计时 / 相机抖动 / 闪光 / 粒子
 // 场景(runner/whack/slice)只负责在舞台上画"演员", 舞台负责其余一切随音乐律动
-import { createFx } from "./fx.js?v=1785383297";
-import { COLORS } from "./config.js?v=1785383297";
+import { createFx } from "./fx.js?v=1785384361";
+import { COLORS } from "./config.js?v=1785384361";
 
 export function createStage(canvas, { song }) {
   const ctx = canvas.getContext("2d");
@@ -140,8 +140,8 @@ export function createStage(canvas, { song }) {
 
   function hud(world) {
     const s = world.scorer;
-    const acc = s.accuracy();
-    const grd = grade(acc, s.counts.miss);
+    const prog = Math.max(0, Math.min(1, world.rankProgress ?? s.rankProgress ?? 0));
+    const grd = prog >= 1 ? "SSS" : prog >= 2 / 3 ? "SS" : prog >= 1 / 3 ? "S" : "READY";
     const mult = 1 + Math.min(0.5, Math.floor(s.combo / 10) * 0.05);
     ctx.save();
     ctx.textBaseline = "alphabetic";
@@ -182,28 +182,24 @@ export function createStage(canvas, { song }) {
       ctx.fillText(`${mmss(world.t)} / ${mmss(world.duration)}`, W / 2, world.best > 0 ? 84 : 70);
     }
 
-    // ---- 右: 准确率 + 评级徽章 ----
+    // ---- 右: 当前评级 ----
     ctx.textAlign = "right";
     ctx.font = "800 11px system-ui, sans-serif";
     ctx.fillStyle = "rgba(243,240,255,0.6)";
-    ctx.fillText("准确率", W - 20, 26);
-    ctx.font = "900 20px system-ui, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(`${Math.round(acc * 100)}%`, W - 20, 48);
+    ctx.fillText("当前评级", W - 20, 30);
     const gc = gradeColor(grd);
-    ctx.font = "900 17px system-ui, sans-serif";
+    ctx.font = "900 18px system-ui, sans-serif";
     const gw = ctx.measureText(grd).width + 20;
     ctx.fillStyle = hexA(gc, 0.16);
-    roundRect(ctx, W - 20 - gw, 55, gw, 22, 6); ctx.fill();
+    roundRect(ctx, W - 20 - gw, 38, gw, 25, 7); ctx.fill();
     ctx.strokeStyle = hexA(gc, 0.9); ctx.lineWidth = 1.5;
-    roundRect(ctx, W - 20 - gw, 55, gw, 22, 6); ctx.stroke();
+    roundRect(ctx, W - 20 - gw, 38, gw, 25, 7); ctx.stroke();
     ctx.fillStyle = gc; ctx.shadowColor = gc; ctx.shadowBlur = 10;
-    ctx.fillText(grd, W - 24, 71); ctx.shadowBlur = 0;
+    ctx.fillText(grd, W - 24, 57); ctx.shadowBlur = 0;
 
-    // ---- 进度条 + 三星(醒目霓虹, 流光 + 亮头) ----
+    // ---- 评级条 + S/SS/SSS 三星（MISS 归零，满级喷火） ----
     const bx = 20, bw = W - 40, by = 96, bh = 10, br = bh / 2;
     const t = world.t || 0;
-    const prog = Math.max(0, Math.min(1, world.progress || 0));
     // 轨道: 更亮的底 + 霓虹描边
     ctx.fillStyle = "rgba(255,255,255,0.16)";
     roundRect(ctx, bx, by, bw, bh, br); ctx.fill();
@@ -235,10 +231,15 @@ export function createStage(canvas, { song }) {
       ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, hy, 13, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
-    // 三星(带描边, 亮暗对比更强)
+    // 三颗星分别对应 S / SS / SSS。
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const rankMarks = [
+      { threshold: 1 / 3, pos: 0.31, label: "S" },
+      { threshold: 2 / 3, pos: 0.62, label: "SS" },
+      { threshold: 1, pos: 0.92, label: "SSS" },
+    ];
     for (let i = 0; i < 3; i++) {
-      const at = (i + 1) / 4, sx = bx + bw * at, reached = prog >= at;
+      const mark = rankMarks[i], sx = bx + bw * mark.pos, reached = prog >= mark.threshold;
       ctx.font = "900 15px system-ui, sans-serif";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(6,4,16,0.9)";
       ctx.strokeText("★", sx, by + bh / 2);
@@ -246,7 +247,11 @@ export function createStage(canvas, { song }) {
       ctx.shadowColor = COLORS.gold; ctx.shadowBlur = reached ? 12 : 0;
       ctx.fillText("★", sx, by + bh / 2);
       ctx.shadowBlur = 0;
+      ctx.font = "900 8px system-ui, sans-serif";
+      ctx.fillStyle = reached ? "#ffffff" : "rgba(210,220,255,0.58)";
+      ctx.fillText(mark.label, sx, by + bh + 8);
     }
+    if (prog >= 1) drawRankFlame(ctx, bx + bw, by + bh / 2, t);
     ctx.restore();
   }
 
@@ -293,17 +298,38 @@ export function createStage(canvas, { song }) {
 // ---- 工具 ----
 function fmt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 function mmss(s) { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
-function grade(acc, miss) {
-  if (miss === 0 && acc >= 0.99) return "SSS+";
-  if (acc >= 0.97) return "SSS";
-  if (acc >= 0.93) return "SS";
-  if (acc >= 0.88) return "S";
-  if (acc >= 0.80) return "A";
-  if (acc >= 0.68) return "B";
-  return "C";
-}
 function gradeColor(g) {
-  return g.startsWith("SSS") ? "#ff5cf0" : g === "SS" ? "#ffd84d" : g === "S" ? "#22e1ff" : g === "A" ? "#5be08a" : "#9fb0d0";
+  return g === "SSS" ? "#ff5cf0" : g === "SS" ? "#ffd84d" : g === "S" ? "#22e1ff" : "#9fb0d0";
+}
+function drawRankFlame(ctx, x, y, t) {
+  ctx.save();
+  ctx.translate(x - 2, y + 2);
+  ctx.globalCompositeOperation = "lighter";
+  const pulse = 1 + Math.sin(t * 13) * 0.12;
+  ctx.scale(pulse, pulse);
+  const flame = (w, h, color, sway) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.55, 2);
+    ctx.quadraticCurveTo(-w, -h * 0.42, sway, -h);
+    ctx.quadraticCurveTo(w, -h * 0.42, w * 0.55, 2);
+    ctx.closePath();
+    ctx.fill();
+  };
+  ctx.shadowColor = "#ff4f18"; ctx.shadowBlur = 18;
+  flame(14, 31, "rgba(255,72,22,0.92)", Math.sin(t * 9) * 4);
+  ctx.shadowColor = "#ffd84d"; ctx.shadowBlur = 12;
+  flame(9, 24, "rgba(255,216,77,0.96)", Math.sin(t * 12 + 1) * 3);
+  ctx.shadowBlur = 8;
+  flame(4.5, 15, "rgba(255,255,238,0.98)", Math.sin(t * 15 + 2) * 2);
+  for (let i = 0; i < 4; i++) {
+    const phase = t * (3.4 + i * 0.3) + i * 1.7;
+    const sy = -18 - ((phase * 17) % 22);
+    const sx = Math.sin(phase * 2.1) * (8 + i * 2);
+    ctx.fillStyle = i % 2 ? "#ffd84d" : "#ff6b28";
+    ctx.beginPath(); ctx.arc(sx, sy, 1.4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
 }
 export function ease(x) { return x * x; }
 export function roundRect(ctx, x, y, w, h, r) {

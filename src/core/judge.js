@@ -14,16 +14,19 @@ export function judgeHit(noteTime, hitTime) {
 
 // 计分器: 维护 combo / score / 统计, 计算最终评级
 export function createScorer(totalNotes) {
-  let score = 0, combo = 0, maxCombo = 0;
+  let score = 0, combo = 0, maxCombo = 0, rankProgress = 0;
   const counts = { perfect: 0, good: 0, miss: 0 };
 
   function add(judgement) {
     counts[judgement]++;
     if (judgement === "miss") {
       combo = 0;
+      rankProgress = 0;
     } else {
       combo++;
       if (combo > maxCombo) maxCombo = combo;
+      // 评级条刻意做得轻量爽快：约 12 个 PERFECT 或 17 个 GOOD 即可充满。
+      rankProgress = Math.min(1, rankProgress + (judgement === "perfect" ? 0.085 : 0.06));
       // combo 倍率(温和): 每 10 连 +5%, 上限 +50%
       const mult = 1 + Math.min(0.5, Math.floor(combo / 10) * 0.05);
       score += SCORE[judgement] * mult;
@@ -31,18 +34,11 @@ export function createScorer(totalNotes) {
     return { judgement, combo, score: Math.round(score) };
   }
 
-  function accuracy() {
-    const done = counts.perfect + counts.good + counts.miss;
-    if (!done) return 1;
-    return (counts.perfect + counts.good * 0.5) / done;
-  }
-
   function rank() {
-    const acc = accuracy();
-    if (counts.miss === 0 && acc >= 0.95) return "S";
-    if (acc >= 0.85) return "A";
-    if (acc >= 0.7) return "B";
-    return "C";
+    if (rankProgress >= 1) return "SSS";
+    if (rankProgress >= 2 / 3) return "SS";
+    if (rankProgress >= 1 / 3) return "S";
+    return "A";
   }
 
   // 空挥/抢拍: 只断连击, 不计入音符统计
@@ -56,8 +52,9 @@ export function createScorer(totalNotes) {
     get score() { return Math.round(score); },
     get combo() { return combo; },
     get maxCombo() { return maxCombo; },
+    get rankProgress() { return rankProgress; },
     get counts() { return counts; },
-    accuracy, rank, totalNotes,
+    rank, totalNotes,
     isFullCombo() { return counts.miss === 0 && (counts.perfect + counts.good) === totalNotes; },
   };
 }
