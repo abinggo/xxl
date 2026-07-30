@@ -6,13 +6,13 @@
 //   tap(x, y)              单键/单击动作(音符跳跃)
 //   laneTap(lane)          多轨动作(敲击工坊); mode.lanes 声明轨数
 //   pointer(type, x, y)    指针滑动(节奏切割), type: down/move/up
-import { getAudio } from "../audio/context.js?v=1785379502";
-import { createConductor } from "./conductor.js?v=1785379502";
-import { createScorer } from "./judge.js?v=1785379502";
-import { playHitSfx } from "../audio/synth.js?v=1785379502";
-import { createStage } from "../render/stage.js?v=1785379502";
-import { createScene } from "../render/scenes/index.js?v=1785379502";
-import { approachTime } from "../render/config.js?v=1785379502";
+import { getAudio } from "../audio/context.js?v=1785382353";
+import { createConductor } from "./conductor.js?v=1785382353";
+import { createScorer } from "./judge.js?v=1785382353";
+import { playHitSfx } from "../audio/synth.js?v=1785382353";
+import { createStage } from "../render/stage.js?v=1785382353";
+import { createScene } from "../render/scenes/index.js?v=1785382353";
+import { approachTime } from "../render/config.js?v=1785382353";
 
 const LEAD_IN = 3.0;
 const LANE_KEYS = { d: 0, f: 1, j: 2, k: 3, D: 0, F: 1, J: 2, K: 3 };
@@ -27,7 +27,7 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
   const chart = events.map((e) => ({ ...e, _done: false, _judge: null, _outcome: null, _rt: 0, lane: e.lane }));
   // 道具方块(炸弹/加速/冰冻)不计入总音符数, 也不参与判定统计/满连判定
   const scorer = createScorer(chart.filter((e) => !e.item).length);
-  let raf = 0, finished = false, lastMilestone = 0, autoplay = false;
+  let raf = 0, finished = false, lastMilestone = 0, autoplay = false, paused = false;
 
   // ---- 提供给 mode 的上下文 ----
   const game = {
@@ -47,6 +47,8 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
     flash: (c, a) => stage.flash(c, a),
     shakeBy: (n) => stage.shakeBy(n),
     celebrate,
+    pause: () => pause(),
+    resume: () => resume(),
   };
 
   const mode = createScene(meta.scene, stage, game);
@@ -85,6 +87,23 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
         ["#ffd84d", "#22e1ff", "#ff3d9a", "#5be08a"][i % 4], 16, 1.6);
     }
     stage.flash("#ffd84d", 0.14);
+  }
+
+  // 暂停: 停止逐帧循环 + suspend 音频(冻结 ctx.currentTime => conductor 时钟一并冻结)
+  function pause() {
+    if (finished || paused) return;
+    paused = true;
+    cancelAnimationFrame(raf);
+    try { getAudio().ctx.suspend(); } catch (e) {}
+  }
+  // 恢复: resume 音频后重启循环(时钟从冻结处连续, 音符不跳拍)
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    try {
+      const p = getAudio().ctx.resume();
+      if (p && p.then) p.then(() => loop(), () => loop()); else loop();
+    } catch (e) { loop(); }
   }
 
   function loop() {
@@ -126,7 +145,13 @@ export function createGame(canvas, { song, player, events, duration, meta, onCom
     raf = requestAnimationFrame(loop);
   }
 
-  function destroy() { finished = true; cancelAnimationFrame(raf); player.stop(); mode.destroy && mode.destroy(); }
+  function destroy() {
+    finished = true;
+    cancelAnimationFrame(raf);
+    if (paused) { paused = false; try { getAudio().ctx.resume(); } catch (e) {} }  // 别把 ctx 留在暂停态给下一局
+    player.stop();
+    mode.destroy && mode.destroy();
+  }
 
   return { start, resize, destroy, setAutoplay, toggleAutoplay, action, key, pointer };
 }

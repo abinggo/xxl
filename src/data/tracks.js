@@ -1,7 +1,7 @@
 // 内置原创曲目 + 场景化谱面编译器
 // 曲目以"步进网格"定义(每小节16个16分音符); 音乐床与谱面从同一网格派生 => 卡点100%对齐
 // 谱面不再是抽象音符, 而是"动作事件": go(点击) / hold(蓄力) / trap(假动作,别按)
-import { freq } from "./notes.js?v=1785379502";
+import { freq } from "./notes.js?v=1785382353";
 
 const STEPS_PER_BAR = 16;
 const BEATS_PER_BAR = 4;
@@ -251,6 +251,11 @@ export function sprinkleItems(events, duration) {
     if (e.time < lo || e.time > hi) return;
     if (i % 10 === 5) { e.item = seq[k % seq.length]; k++; }
   });
+  // 隐藏福利: 全曲随机偶现 1 个 gift(中段挑一个未占用的 go 事件), 切中即"爆礼物"
+  const gLo = duration * 0.25, gHi = duration * 0.8;
+  const cand = [];
+  events.forEach((e) => { if (e.action === "go" && !e.item && e.time >= gLo && e.time <= gHi) cand.push(e); });
+  if (cand.length) cand[Math.floor(Math.random() * cand.length)].item = "gift";
 }
 
 // 由时间点集合构造动作事件; holdMap 命中则为 hold; traps>0 时在空档插入陷阱

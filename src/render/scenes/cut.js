@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785379502";
-import { hexA } from "../stage.js?v=1785379502";
-import { clamp, lerp } from "./base.js?v=1785379502";
+import { COLORS } from "../config.js?v=1785382353";
+import { hexA } from "../stage.js?v=1785382353";
+import { clamp, lerp } from "./base.js?v=1785382353";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -77,6 +77,7 @@ export function createCut(stage, game) {
   const trail = [];
   let prevPt = null, autoPt = null;
   let firstActive = 0, recent = null, lastScore = 0, lastPopT = -1;
+  let giftPaused = false, giftMask = null;           // 隐藏福利: 弹窗暂停态 + 遮罩引用
   let fever = 0, feverT = -1, feverFlashT = -1;
   let freezeOff = 0, freezeUntil = -1, freezeFlashT = -1, lastFrameT = -1; // 冰冻: 累积偏移冻结音符时间线
   const NT = () => game.t - freezeOff;               // 音符时间线(冰冻期间停住), 视觉/刀光仍用 game.t
@@ -115,7 +116,7 @@ export function createCut(stage, game) {
     n._x0f = clamp(0.5 + dir * (0.10 + (i % 4) * 0.09), 0.10, 0.90);
     n._x1f = clamp(n._x0f + dir * (0.16 + (i % 3) * 0.08), 0.06, 0.94);
     n._gold = !n.item && i % 7 === 3;
-    n._col = n.item ? (n.item === "bomb" ? RED : n.item === "bonus" ? GOLD : CYAN)
+    n._col = n.item ? (n.item === "bomb" ? RED : n.item === "bonus" ? GOLD : n.item === "gift" ? (flower ? F_PINK : GOLD) : CYAN)
                     : (n._gold ? GOLD : PAL[i % PAL.length]);
     n._shape = n._gold ? 0 : i % 3;                  // neon:0方块1环2宝石 / flower:0樱花1水晶花2莲花
     n._bob = i * 1.3;
@@ -183,11 +184,12 @@ export function createCut(stage, game) {
     }
   }
 
-  function laneTap() { sliceNearest(); }
-  function tap() { sliceNearest(); }
+  function laneTap() { if (giftPaused) return; sliceNearest(); }
+  function tap() { if (giftPaused) return; sliceNearest(); }
 
   let bladeAcc = 0;                                  // 掉屑节流: 累积挥动距离
   function pointer(type, x, y) {
+    if (giftPaused) return;                          // 礼物弹窗期间不接受切割
     const t = game.t;
     if (type === "down") { trail.length = 0; trail.push({ x, y, t }); prevPt = { x, y }; bladeAcc = 0; sliceSeg(x - 1, y, x + 1, y); return; }
     if (type === "move") {
@@ -258,6 +260,7 @@ export function createCut(stage, game) {
   // 隐藏道具命中: 炸弹扣分断连 / 加速加分 / 冰冻加分并暂停下落(均不计入判定统计)
   function resolveItem(n, x, y, ang) {
     const t = game.t;
+    if (n.item === "gift") { resolveGift(n, x, y, ang); return; }
     if (n.item === "bomb") {
       game.addScore(-150); game.breakCombo();
       recent = { t, j: "miss" }; pengMood = -1; fever = clamp(fever - 0.3, 0, 1);
@@ -290,6 +293,54 @@ export function createCut(stage, game) {
       stage.fx.spawnPop(x, y - geom.H * 0.01, "+80", CYAN, { size: 20, rise: 1.0, decay: 0.035 });
     }
     lastPopT = t;
+  }
+
+  // 隐藏福利命中: 满屏礼花绽放 + 大加分, 稍候定格并弹出礼物界面(点击领取继续)
+  function resolveGift(n, x, y, ang) {
+    const t = game.t;
+    recent = { t, j: "perfect" }; pengPulse = 1; pengMood = 1; lastPopT = t;
+    game.addScore(888);
+    const cols = flower ? [F_PINK, F_GOLD, F_MAG, "#ffffff"] : [S_GOLD, S_ORANGE, S_RED, "#ffffff"];
+    stage.fx.spawnHalves(x, y, flower ? F_PINK : S_GOLD, ang, 40);
+    for (const col of cols) { stage.fx.spawnBurst(x, y, col, 20, 2.8); stage.fx.spawnShards(x, y, col, 12, 2.6); }
+    stage.fx.spawnRing(x, y, GOLD, 3.2); stage.fx.spawnRing(x, y, "#ffffff", 2.2); stage.fx.spawnRing(x, y, flower ? F_PINK : S_ORANGE, 2.6);
+    stage.fx.spawnPop(x, y - geom.H * 0.06, "✦ 隐藏福利 ✦", GOLD, { size: 30, rise: 1.0, decay: 0.02 });
+    stage.fx.spawnPop(x, y - geom.H * 0.02, "+888", GOLD, { size: 20, rise: 1.0, decay: 0.03 });
+    stage.shakeBy(13); stage.flash(GOLD, 0.32);
+    if (navigator.vibrate) navigator.vibrate([18, 24, 40]);
+    setTimeout(showGiftPopup, 500);                  // 让礼花先绽放 ~0.5s 再定格弹窗
+  }
+
+  // 礼物弹窗: 全屏遮罩 + 主题礼物成品图, 暂停整局(音频+帧), 点击任意处领取并继续
+  function showGiftPopup() {
+    if (giftPaused) return;
+    giftPaused = true;
+    game.pause();
+    if (sunsetBg) sunsetBg.pause();
+    if (flowerBg) flowerBg.pause();
+    const src = (flower ? "./assets/gift/huahai_gift.jpg" : "./assets/gift/riluo_gift.jpg") + "?v=1785382353";
+    const glow = flower ? "rgba(255,95,174,.65)" : "rgba(255,158,60,.65)";
+    const mask = document.createElement("div");
+    giftMask = mask;
+    mask.style.cssText = "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,2,14,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer";
+    mask.innerHTML =
+      '<img src="' + src + '" alt="gift" style="max-height:86vh;max-width:92vw;border-radius:20px;box-shadow:0 0 64px ' + glow + ',0 24px 80px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.16)"/>' +
+      '<div style="margin-top:16px;color:#fff;font-size:14px;letter-spacing:2px;opacity:.85;text-shadow:0 2px 8px rgba(0,0,0,.6)">轻触任意处 · 领取并继续</div>';
+    const img = mask.querySelector("img");
+    try {
+      img.animate(
+        [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1.05)", opacity: 1, offset: .7 }, { transform: "scale(1)", opacity: 1 }],
+        { duration: 540, easing: "cubic-bezier(.2,1.5,.4,1)" }
+      );
+    } catch (e) {}
+    let closed = false;
+    const close = () => {
+      if (closed) return; closed = true;
+      mask.remove(); giftMask = null; giftPaused = false;
+      game.resume();                                 // draw 恢复后会自动重新播放背景视频
+    };
+    mask.addEventListener("click", close);
+    document.body.appendChild(mask);
   }
 
   function triggerFreeze() { freezeUntil = game.t + FREEZE_DUR; freezeFlashT = game.t; }
@@ -799,6 +850,7 @@ export function createCut(stage, game) {
     c.save(); c.translate(x, y); c.rotate(Math.sin(t * 1.3 + n._bob) * 0.06);
     if (n.item === "bomb") { flower ? drawSpikeBall(c, a, t, n._spec) : drawBomb(c, a, t, n._spec); } // 花海: 带刺障碍
     else if (n.item === "bonus") drawBonus(c, a, t, n._spec);
+    else if (n.item === "gift") drawGift(c, a, t, n._spec);
     else drawFreeze(c, a, t, n._spec);
     c.restore();
   }
@@ -863,6 +915,25 @@ export function createCut(stage, game) {
     c.strokeStyle = hexA("#ffffff", 0.85); c.lineWidth = 1.6; c.stroke();
     c.restore();
     itemGlyph(c, "❄", a * 1.1, "#0a5a70");
+  }
+
+  // 隐藏福利道具: 闪耀礼盒 — 旋转星芒 + 主题色光晕 + 🎁, 醒目诱导玩家切开
+  function drawGift(c, a, t, spec) {
+    const col = flower ? F_PINK : S_GOLD, pulse = 0.5 + 0.5 * Math.sin(t * 5 + spec);
+    c.save(); c.globalCompositeOperation = "lighter";
+    const gg = c.createRadialGradient(0, 0, 2, 0, 0, a * 2.3);
+    gg.addColorStop(0, hexA("#ffffff", 0.55 + pulse * 0.3));
+    gg.addColorStop(0.4, hexA(col, 0.5)); gg.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = gg; c.beginPath(); c.arc(0, 0, a * 2.3, 0, Math.PI * 2); c.fill();
+    c.save(); c.rotate(t * 1.4);                       // 旋转星芒
+    c.strokeStyle = hexA("#ffffff", 0.5 + pulse * 0.3); c.lineWidth = 2; c.lineCap = "round";
+    for (let i = 0; i < 6; i++) { c.rotate(Math.PI / 3); const r = a * (1.7 + pulse * 0.4); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -r); c.stroke(); }
+    c.restore(); c.restore();
+    c.save();                                          // 礼盒
+    c.shadowColor = col; c.shadowBlur = 20 + pulse * 18;
+    c.font = `${Math.round(a * 1.9)}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("🎁", 0, a * 0.04);
+    c.restore();
   }
 
   function itemGlyph(c, ch, size, shadow) {
@@ -1059,7 +1130,10 @@ export function createCut(stage, game) {
   }
 
   // 离场: 暂停正在解码的背景视频, 避免后台持续耗 CPU/GPU
-  function destroy() { if (sunsetBg) sunsetBg.pause(); if (flowerBg) flowerBg.pause(); }
+  function destroy() {
+    if (giftMask) { giftMask.remove(); giftMask = null; }   // 清理残留礼物弹窗
+    if (sunsetBg) sunsetBg.pause(); if (flowerBg) flowerBg.pause();
+  }
   return { draw, update, auto, laneTap, tap, pointer, destroy, lanes: 2, floor: false };
 }
 

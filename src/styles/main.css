@@ -443,3 +443,32 @@ body {
 .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--stroke); border-top-color: var(--cyan); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading__txt { color: var(--text-dim); font-size: 13px; }
+
+/* ============================================================
+   真机适配: 触屏/窄屏设备去掉"手机模拟器"外壳(刘海/假状态栏/圆角/homebar),
+   让游戏铺满整个屏幕 —— 真手机自带刘海和状态栏, 不再套娃。
+   PC(带鼠标的大屏)保持模拟器外观不变。
+   ============================================================ */
+@media (pointer: coarse), (max-width: 500px) {
+  html, body { height: 100dvh; }
+  body { gap: 0; min-height: 100dvh; overflow: hidden; }
+  .phone {
+    width: 100vw; height: 100dvh;
+    max-height: none; aspect-ratio: auto;
+    border-radius: 0; padding: 0;
+    box-shadow: none;
+    background: var(--bg-1);
+  }
+  /* 假刘海 / 假状态栏(时间·信号·wifi·电量) / 假手势条 —— 全部隐藏 */
+  .phone__notch, .phone__statusbar, .phone__homebar { display: none; }
+  /* 视口铺满, 顶部/底部让开系统安全区(真机刘海与手势条) */
+  .viewport {
+    top: env(safe-area-inset-top, 0px);
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: 0;
+    border-radius: 0;
+  }
+  /* PC 用的键盘操作提示在真机上无意义, 隐藏 */
+  .hint { display: none; }
+}
