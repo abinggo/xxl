@@ -1,5 +1,5 @@
 // 单入口标题页 + 关卡地图(世界×小关)
-import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785348576";
+import { WORLDS, getProgress, isUnlocked, levelStars } from "../data/levels.js?v=1785379502";
 
 // ---------- 标题页(唯一入口 · 动态封面) ----------
 // 保留海报 1.png 原样(字体/水晶标题/水晶按钮全不变), 只叠一层动效: 彩纸飘落、
@@ -15,7 +15,7 @@ export function renderHome(root, { songs, onStart, onCustom }) {
   el.className = "screen home home--cover";
   el.innerHTML = `
     <div class="cover">
-      <img class="cover__img" id="coverImg" src="./assets/bg/cover.png" alt="一拍即合 · 节拍切击" draggable="false" />
+      <img class="cover__img" id="coverImg" src="./assets/bg/cover.jpg" alt="一拍即合 · 节拍切击" draggable="false" />
       <canvas class="cover__fx" id="coverFx"></canvas>
       <button class="cover__pickbtn" id="songBtn"></button>
       <button class="hot hot--play" id="startBtn" aria-label="开始"></button>

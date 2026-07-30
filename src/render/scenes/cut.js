@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785348576";
-import { hexA } from "../stage.js?v=1785348576";
-import { clamp, lerp } from "./base.js?v=1785348576";
+import { COLORS } from "../config.js?v=1785379502";
+import { hexA } from "../stage.js?v=1785379502";
+import { clamp, lerp } from "./base.js?v=1785379502";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -29,10 +29,10 @@ let PENG = null;
 { const im = new Image(); im.onload = () => { PENG = im; }; im.src = "./assets/ip/penguin_hero.png"; }
 // 花海舞台底图(切花场景背景), 加载完成前回退为粉色渐变
 let FLORAL = null;
-{ const im = new Image(); im.onload = () => { FLORAL = im; }; im.src = "./assets/bg/huahai_stage.png"; }
+{ const im = new Image(); im.onload = () => { FLORAL = im; }; im.src = "./assets/bg/huahai_stage.jpg"; }
 // 日落大道舞台底图(落日公路), 加载完成前回退为暖色渐变
 let SUNSET = null;
-{ const im = new Image(); im.onload = () => { SUNSET = im; }; im.src = "./assets/bg/riluo_stage.png"; }
+{ const im = new Image(); im.onload = () => { SUNSET = im; }; im.src = "./assets/bg/riluo_stage.jpg"; }
 
 // 主题背景视频: 整段视频(已烤入企鹅 + 全部动效)作为循环背景铺满播放。
 // 全画面直接 drawImage(video) => GPU 直出、无像素回读, 成本极低; 同一时刻只解码当前主题那一个。
