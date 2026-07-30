@@ -14,6 +14,7 @@ export function judgeHit(noteTime, hitTime) {
 
 // 计分器: 维护 combo / score / 统计, 计算最终评级
 export function createScorer(totalNotes) {
+  let expectedNotes = totalNotes;
   let score = 0, combo = 0, maxCombo = 0, rankProgress = 0;
   const counts = { perfect: 0, good: 0, miss: 0 };
 
@@ -46,15 +47,17 @@ export function createScorer(totalNotes) {
 
   // 道具直接加减分(不计入判定统计, 不影响连击): 炸弹扣分 / 加速道具加分 / 冰冻加分
   function addRaw(delta) { score = Math.max(0, score + delta); return Math.round(score); }
+  function setTotalNotes(next) { expectedNotes = Math.max(0, Number(next) || 0); }
 
   return {
-    add, breakCombo, addRaw,
+    add, breakCombo, addRaw, setTotalNotes,
     get score() { return Math.round(score); },
     get combo() { return combo; },
     get maxCombo() { return maxCombo; },
     get rankProgress() { return rankProgress; },
     get counts() { return counts; },
-    rank, totalNotes,
-    isFullCombo() { return counts.miss === 0 && (counts.perfect + counts.good) === totalNotes; },
+    rank,
+    get totalNotes() { return expectedNotes; },
+    isFullCombo() { return counts.miss === 0 && (counts.perfect + counts.good) === expectedNotes; },
   };
 }

@@ -2,9 +2,9 @@
 // 立体水晶方块(等距三面 + 线框三角面 + ♪)从下方成群抛物线飞出, 手指/鼠标滑动 => 粉紫青
 // 螺旋刀光划过即切开, 命中: 玻璃碎成两半 + 棱面碎晶 + 冲击环 + 相机冲击 + PERFECT 金字。
 // 背景: 两侧音箱墙 + 人群荧光棒 + 舞池光环 + 满屏钻石碎屑 + 扫射光束。桌面 F/J 切最近音符。
-import { COLORS } from "../config.js?v=1785384361";
-import { hexA } from "../stage.js?v=1785384361";
-import { clamp, lerp } from "./base.js?v=1785384361";
+import { COLORS } from "../config.js?v=1785387344";
+import { hexA } from "../stage.js?v=1785387344";
+import { clamp, lerp } from "./base.js?v=1785387344";
 
 const PURPLE = "#a855ff", VIOLET = "#7b3cff", BLUE = "#2f7bff", CYAN = "#22e1ff";
 const PINK = "#ff4fd8", GREEN = "#5be08a", GOLD = "#ffd84d";
@@ -182,9 +182,14 @@ export function createCut(stage, game) {
     { xf: 0.88, yf: 0.58, col: GREEN, ph: 3.3, r: 13 },
   ];
 
-  // 把连续散点重新编排成“歌词短句”: 同组音符同时飞入并排成一条可一笔切完的轨迹。
-  // 高潮区间使用 V 字队形, 玩家从左上滑到谷底再滑向右上即可清掉整句。
+  // 按歌词绝对时间轴补充短句节奏：一句拆成 1–2 组，每组同时弹出一小串可连切物品。
+  // 原始音频 onset 谱面继续保留，因此伴奏段也不会变空。
+  injectLyricRhythmNotes(chart, game.song.id, game.duration);
+  game.scorer.setTotalNotes(chart.filter((n) => !n.item).length);
+
+  // 把散点和歌词节拍编排成可一笔切完的轨迹；高潮区优先出现 V / 皇冠 / 爱心。
   const phrases = buildPhrases(chart, game.duration);
+  chart.sort((a, b) => ((a._phrase && a._phrase.time) || a.time) - ((b._phrase && b._phrase.time) || b.time));
 
   chart.forEach((n, i) => {
     n._hitTime = n._phrase ? n._phrase.time : n.time;
@@ -447,7 +452,7 @@ export function createCut(stage, game) {
     game.pause();
     if (sunsetBg) sunsetBg.pause();
     if (flowerBg) flowerBg.pause();
-    const src = (flower ? "./assets/gift/original/huahai_gift_full.png" : "./assets/gift/original/riluo_gift_full.png") + "?v=1785384361";
+    const src = (flower ? "./assets/gift/original/huahai_gift_full.png" : "./assets/gift/original/riluo_gift_full.png") + "?v=1785387344";
     const glow = flower ? "rgba(255,95,174,.65)" : "rgba(255,158,60,.65)";
     const mask = document.createElement("div");
     giftMask = mask;
@@ -795,7 +800,8 @@ export function createCut(stage, game) {
         c.fillStyle = phrase.climax ? "#fff4b0" : "#ffffff";
         c.shadowColor = col; c.shadowBlur = 12;
         const prefix = phrase.climax ? "高潮 · " : "";
-        c.fillText(`${prefix}${phrase.name} ×${phrase.size} · 一笔描图加分`, geom.W / 2, Math.max(92, topY));
+        const lyricCue = phrase.lyricText ? ` · ${phrase.lyricText.slice(0, 10)}` : "";
+        c.fillText(`${prefix}${phrase.name} ×${phrase.size}${lyricCue} · 一笔描图加分`, geom.W / 2, Math.max(92, topY));
       }
       c.restore();
     }
@@ -1491,42 +1497,123 @@ const GESTURES = [
 const GESTURE_SIZES = { wave: 7, v: 7, heart: 10, petal: 11, zigzag: 8, circle: 10, infinity: 10, crown: 7 };
 function isClosedGesture(pattern) { return ["heart", "petal", "circle", "infinity"].includes(pattern); }
 
+function injectLyricRhythmNotes(chart, songId, duration) {
+  const lines = LYRICS[songId];
+  if (!lines || !lines.length) return 0;
+  let added = 0, groupId = 0;
+  for (const [start, end, text] of lines) {
+    if (start >= duration) continue;
+    const units = splitLyricUnits(text);
+    const lengths = units.map((unit) => lyricCharCount(unit));
+    const totalChars = Math.max(1, lengths.reduce((sum, n) => sum + n, 0));
+    const lineEnd = Math.min(end, duration - 0.2);
+    const span = Math.max(0.5, lineEnd - start);
+    let charCursor = 0;
+    for (let u = 0; u < units.length; u++) {
+      const chars = lengths[u];
+      const unitStart = start + span * (charCursor / totalChars);
+      const unitEnd = start + span * ((charCursor + chars) / totalChars);
+      charCursor += chars;
+      const unitSpan = Math.max(0.35, unitEnd - unitStart);
+      // 出现在该段歌词开唱后不久，既贴人声又给玩家留出识别手势的时间。
+      const hitTime = clamp(unitStart + Math.min(0.52, unitSpan * 0.24), start + 0.08, lineEnd - 0.12);
+      const climax = isClimaxTime(hitTime, duration);
+      const count = clamp(Math.round(2.5 + chars * 0.42 + (climax ? 1 : 0)), 4, climax ? 8 : 7);
+      const key = `${songId}-${groupId++}`;
+      for (let i = 0; i < count; i++) {
+        chart.push({
+          time: hitTime + (i - (count - 1) / 2) * 0.006,
+          action: "go",
+          _lyricGroup: key,
+          _lyricTime: hitTime,
+          _lyricText: units[u],
+          _lyricClimax: climax,
+        });
+        added++;
+      }
+    }
+  }
+  chart.sort((a, b) => a.time - b.time);
+  return added;
+}
+
+function splitLyricUnits(text) {
+  const spaced = text.trim().split(/\s+/).filter(Boolean);
+  if (spaced.length > 1) return spaced;
+  const clean = spaced[0] || text.trim();
+  const chars = Array.from(clean);
+  if (chars.length < 10) return [clean];
+  const middle = Math.ceil(chars.length / 2);
+  return [chars.slice(0, middle).join(""), chars.slice(middle).join("")];
+}
+
+function lyricCharCount(text) {
+  return Math.max(1, Array.from(text.replace(/[\s，。！？、,.!?]/g, "")).length);
+}
+
+function isClimaxTime(time, duration) {
+  const progress = duration > 0 ? time / duration : 0;
+  return (progress >= 0.38 && progress <= 0.57) || (progress >= 0.70 && progress <= 0.91);
+}
+
 function buildPhrases(chart, duration) {
   const notes = chart.filter((n) => !n.item);
-  const phrases = [];
+  const specs = [];
+  const lyricGroups = new Map();
+  const freeNotes = [];
+  for (const note of notes) {
+    if (!note._lyricGroup) { freeNotes.push(note); continue; }
+    if (!lyricGroups.has(note._lyricGroup)) lyricGroups.set(note._lyricGroup, []);
+    lyricGroups.get(note._lyricGroup).push(note);
+  }
+  for (const group of lyricGroups.values()) {
+    specs.push({
+      time: group[0]._lyricTime,
+      notes: group,
+      lyricText: group[0]._lyricText,
+      climax: !!group[0]._lyricClimax,
+    });
+  }
+
   let cursor = 0;
-  while (cursor < notes.length) {
-    const progress = duration > 0 ? notes[cursor].time / duration : 0;
-    const climax = (progress >= 0.38 && progress <= 0.57) || (progress >= 0.70 && progress <= 0.91);
-    const baseGesture = GESTURES[phrases.length % GESTURES.length];
-    const climaxIds = ["v", "crown", "heart"];
-    const gestureId = climax ? climaxIds[phrases.length % climaxIds.length] : baseGesture.id;
-    const gesture = GESTURES.find((g) => g.id === gestureId) || baseGesture;
-    const targetSize = GESTURE_SIZES[gesture.id] || 8;
-    let size = Math.min(targetSize, notes.length - cursor);
-    const remain = notes.length - cursor - size;
+  while (cursor < freeNotes.length) {
+    const seed = freeNotes[cursor];
+    const targetSize = GESTURE_SIZES[GESTURES[specs.length % GESTURES.length].id] || 8;
+    let size = Math.min(targetSize, freeNotes.length - cursor);
+    const remain = freeNotes.length - cursor - size;
     if (remain > 0 && remain < 3) size += remain;
-    const group = notes.slice(cursor, cursor + size);
+    const group = freeNotes.slice(cursor, cursor + size);
     const time = group.reduce((sum, n) => sum + n.time, 0) / group.length;
+    specs.push({ time, notes: group, climax: isClimaxTime(time, duration), lyricText: "" });
+    cursor += size;
+  }
+
+  specs.sort((a, b) => a.time - b.time);
+  const phrases = [];
+  for (const spec of specs) {
     const id = phrases.length;
+    const baseGesture = GESTURES[id % GESTURES.length];
+    const climaxIds = ["v", "crown", "heart"];
+    const gestureId = spec.climax ? climaxIds[id % climaxIds.length] : baseGesture.id;
+    const gesture = GESTURES.find((g) => g.id === gestureId) || baseGesture;
     const phrase = {
       id,
-      time,
-      notes: group,
-      size: group.length,
+      time: spec.time,
+      notes: spec.notes,
+      size: spec.notes.length,
       pattern: gesture.id,
       name: gesture.name,
-      climax,
+      lyricText: spec.lyricText,
+      climax: spec.climax,
       reverse: id % 2 === 1,
       phase: id * 1.7,
       cleared: false,
     };
-    group.forEach((n, index) => {
+    spec.notes.forEach((n, index) => {
       n._phrase = phrase;
       n._phraseIndex = index;
     });
     phrases.push(phrase);
-    cursor += size;
   }
   return phrases;
 }

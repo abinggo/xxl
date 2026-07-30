@@ -1,7 +1,7 @@
 // 主渲染器: 舞台 / 判定圈 / 收缩节拍环 / HUD, 全部随音乐频谱律动
-import { APPROACH, LANE_X, JUDGE_Y, TARGET_R, RING_EXTRA, COLORS } from "./config.js?v=1785384361";
-import { createFx } from "./fx.js?v=1785384361";
-import { createCharacter } from "./character.js?v=1785384361";
+import { APPROACH, LANE_X, JUDGE_Y, TARGET_R, RING_EXTRA, COLORS } from "./config.js?v=1785387344";
+import { createFx } from "./fx.js?v=1785387344";
+import { createCharacter } from "./character.js?v=1785387344";
 
 export function createRenderer(canvas, song) {
   const ctx = canvas.getContext("2d");
