@@ -1,7 +1,7 @@
 // 共享舞台: 背景 / 霓虹透视地板 / 演唱会灯光 / HUD / 倒计时 / 相机抖动 / 闪光 / 粒子
 // 场景(runner/whack/slice)只负责在舞台上画"演员", 舞台负责其余一切随音乐律动
-import { createFx } from "./fx.js?v=1785387344";
-import { COLORS } from "./config.js?v=1785387344";
+import { createFx } from "./fx.js?v=1785387662";
+import { COLORS } from "./config.js?v=1785387662";
 
 export function createStage(canvas, { song }) {
   const ctx = canvas.getContext("2d");
